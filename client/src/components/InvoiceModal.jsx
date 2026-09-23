@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import api from '../api/axios';
-import { Loader2, AlertCircle, X, Printer } from 'lucide-react';
+import { Loader2, AlertCircle, X, Printer, Download } from 'lucide-react';
 
 /**
  * InvoiceModal
@@ -11,6 +11,7 @@ import { Loader2, AlertCircle, X, Printer } from 'lucide-react';
 const InvoiceModal = ({ orderId, onClose }) => {
   const [invoice, setInvoice] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [error, setError] = useState('');
   const overlayRef = useRef(null);
 
@@ -31,6 +32,30 @@ const InvoiceModal = ({ orderId, onClose }) => {
   // Close on overlay click (but not card click)
   const handleOverlayClick = (e) => {
     if (e.target === overlayRef.current) onClose();
+  };
+
+  const handleDownloadPdf = async () => {
+    if (!invoice) return;
+    try {
+      setDownloadingPdf(true);
+      const res = await api.get(`/payments/${orderId}/invoice/pdf`, {
+        responseType: 'blob',
+      });
+      const blob = new Blob([res.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Invoice-${invoice.invoiceId || orderId}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Failed to download invoice PDF:', err);
+      alert('Failed to download invoice PDF. Please try again.');
+    } finally {
+      setDownloadingPdf(false);
+    }
   };
 
   return (
@@ -169,11 +194,31 @@ const InvoiceModal = ({ orderId, onClose }) => {
                       </tr>
                     ))}
                   </tbody>
-                  <tfoot>
-                    <tr className="bg-theme-elevated border-t border-theme text-theme-primary">
-                      <td colSpan={3} className="py-3.5 px-4 font-bold text-sm tracking-wide">Total Amount</td>
+                  <tfoot className="divide-y divide-theme">
+                    <tr className="bg-theme-elevated/40 text-theme-muted">
+                      <td colSpan={3} className="py-2.5 px-4 font-semibold">Items Subtotal</td>
+                      <td className="py-2.5 px-4 text-right font-bold text-theme-primary">
+                        ₹{(invoice.itemsSubtotal ?? invoice.totalAmount).toFixed(2)}
+                      </td>
+                    </tr>
+                    <tr className="bg-theme-elevated/40 text-theme-muted">
+                      <td colSpan={3} className="py-2.5 px-4 font-semibold">Delivery Charge</td>
+                      <td className="py-2.5 px-4 text-right font-bold text-theme-primary">
+                        {invoice.deliveryCharge ? `₹${invoice.deliveryCharge.toFixed(2)}` : 'FREE'}
+                      </td>
+                    </tr>
+                    {invoice.isExpress && (
+                      <tr className="bg-theme-elevated/40 text-theme-accent">
+                        <td colSpan={3} className="py-2.5 px-4 font-semibold">⚡ Express Service Fee</td>
+                        <td className="py-2.5 px-4 text-right font-bold">
+                          +₹{(invoice.expressFee || 150).toFixed(2)}
+                        </td>
+                      </tr>
+                    )}
+                    <tr className="bg-theme-elevated border-t-2 border-theme text-theme-primary">
+                      <td colSpan={3} className="py-3.5 px-4 font-bold text-sm tracking-wide">Total Amount Paid</td>
                       <td className="py-3.5 px-4 text-right font-black text-xl text-theme-accent">
-                        ₹{invoice.totalAmount}
+                        ₹{invoice.totalAmount.toFixed(2)}
                       </td>
                     </tr>
                   </tfoot>
@@ -185,11 +230,21 @@ const InvoiceModal = ({ orderId, onClose }) => {
                 Thank you for choosing LaundryConnect. This is a system-generated invoice and does not require a signature.
               </p>
 
-              {/* Print Button */}
-              <div className="no-print flex justify-center pt-2">
+              {/* Actions Bar */}
+              <div className="no-print flex flex-wrap justify-center gap-3 pt-2">
                 <button
+                  type="button"
+                  onClick={handleDownloadPdf}
+                  disabled={downloadingPdf}
+                  className="flex items-center space-x-2 px-5 py-2.5 bg-theme-accent text-[var(--accent-text)] rounded-2xl text-xs font-bold shadow-theme-accent transition-colors theme-btn-hover disabled:opacity-50"
+                >
+                  <Download className="h-4 w-4" />
+                  <span>{downloadingPdf ? 'Downloading…' : 'Download PDF'}</span>
+                </button>
+                <button
+                  type="button"
                   onClick={() => window.print()}
-                  className="flex items-center space-x-2 px-6 py-3 bg-theme-accent text-[var(--accent-text)] rounded-2xl text-sm font-bold shadow-theme-accent transition-colors theme-btn-hover"
+                  className="flex items-center space-x-2 px-5 py-2.5 bg-theme-elevated border border-theme text-theme-primary hover:bg-theme-surface rounded-2xl text-xs font-bold transition-colors"
                 >
                   <Printer className="h-4 w-4" />
                   <span>Print Invoice</span>

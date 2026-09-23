@@ -202,6 +202,29 @@ const TrackOrder = () => {
             </div>
           </div>
 
+          {/* Cost Breakdown */}
+          <div className="bg-theme-elevated/60 rounded-2xl p-4 border border-theme space-y-2">
+            <h4 className="text-xs font-bold text-theme-primary uppercase tracking-wider mb-2">Cost Breakdown</h4>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+              <div className="bg-theme-card p-3 rounded-xl border border-theme">
+                <span className="text-theme-muted block">Items Subtotal</span>
+                <span className="font-bold text-theme-primary text-sm mt-0.5 block">₹{order.itemsSubtotal ?? order.totalAmount}</span>
+              </div>
+              <div className="bg-theme-card p-3 rounded-xl border border-theme">
+                <span className="text-theme-muted block">Delivery Fee</span>
+                <span className="font-bold text-theme-primary text-sm mt-0.5 block">{order.deliveryCharge ? `₹${order.deliveryCharge}` : 'FREE'}</span>
+              </div>
+              <div className="bg-theme-card p-3 rounded-xl border border-theme">
+                <span className="text-theme-muted block">Express Service</span>
+                <span className="font-bold text-theme-accent text-sm mt-0.5 block">{order.isExpress ? `+₹${order.expressFee || 150}` : 'Standard (₹0)'}</span>
+              </div>
+              <div className="bg-theme-card p-3 rounded-xl border border-theme-accent/30 bg-theme-accent-light/10">
+                <span className="text-theme-muted block">Total Payable</span>
+                <span className="font-black text-theme-accent text-sm mt-0.5 block">₹{order.totalAmount}</span>
+              </div>
+            </div>
+          </div>
+
         </div>
       ) : (
         <div className="text-center py-16 bg-theme-card border border-theme rounded-3xl p-8 max-w-sm mx-auto text-theme-muted shadow-theme-sm">

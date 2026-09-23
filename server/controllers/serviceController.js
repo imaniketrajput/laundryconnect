@@ -1,12 +1,12 @@
 const Service = require("../models/Service");
-const {serviceTrie} = require("../utils/serviceTrie");
+const {serviceTrie, insertServiceTerms} = require("../utils/serviceTrie");
 
 
 exports.createService = async (req, res) =>{
     try{
         const {name, category, pricePerUnit, unit, description} = req.body;
         const service = await Service.create({name, category, pricePerUnit, unit, description});
-        serviceTrie.insert(service.name, service._id);
+        insertServiceTerms(service.name, service._id);
         res.status(201).json(service);
     }catch(err)
     {

@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 
 const statusHistorySchema = new mongoose.Schema(
     {
-        status: {type: String, enum: ["Placed", "PickedUp", "Washing", "Ready", "OutForDelivery", "Delivered", "Cancelled"],},
+        status: {type: String, enum: ["Draft", "Placed", "PickedUp", "Washing", "Ready", "OutForDelivery", "Delivered", "Cancelled"],},
 
         timestamp: {type: Date, default: Date.now},
     },
@@ -29,12 +29,21 @@ const orderSchema = new mongoose.Schema(
         assignedPartner: { type: mongoose.Schema.Types.ObjectId, ref: "DeliveryPartner" },
         currentStatus: {
             type: String,
-            enum: ["Placed", "PickedUp", "Washing", "Ready", "OutForDelivery", "Delivered", "Cancelled"],
-            default: "Placed",
+            enum: ["Draft", "Placed", "PickedUp", "Washing", "Ready", "OutForDelivery", "Delivered", "Cancelled"],
+            default: "Draft",
+        },
+        orderVisibility: {
+            type: String,
+            enum: ["Draft", "Visible", "Cancelled"],
+            default: "Draft",
+            index: true,
         },
 
         statusHistory: [statusHistorySchema],
-        totalAmount: {type: Number, required: true},
+        itemsSubtotal: { type: Number, required: true },
+        deliveryCharge: { type: Number, required: true, default: 0 },
+        expressFee: { type: Number, required: true, default: 0 },
+        totalAmount: { type: Number, required: true },
         
         paymentStatus: { type: String, enum: ["Pending", "Paid", "Failed"], default: "Pending" },
         paymentMethod: { type: String, enum: ["UPI", "Card", "Cash", "Razorpay"], default: null },

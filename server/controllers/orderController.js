@@ -11,35 +11,64 @@ exports.createOrder = async (req, res) =>{
         const {services, pickupAddress, pickupDate, isExpress} = req.body;
         const customerId = req.user.id;
 
-        if(!services || services.length == 0)
+        if(!services || services.length === 0)
         {
-            return res.status(400).json({message: "At least one service is requires"});
+            return res.status(400).json({message: "At least one service is required"});
         }
 
-        let totalAmount = 0;
+        if(!pickupAddress || !pickupAddress.trim()) {
+            return res.status(400).json({message: "Pickup address is required"});
+        }
+
+        if(!pickupDate) {
+            return res.status(400).json({message: "Pickup date is required"});
+        }
+
+        // Validate pickup date is not in the past
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const parsedPickupDate = new Date(pickupDate);
+        if (isNaN(parsedPickupDate.getTime()) || parsedPickupDate < today) {
+            return res.status(400).json({ message: "Pickup date cannot be in the past" });
+        }
+
+        // Authoritative server-side pricing computation
+        let itemsSubtotal = 0;
         for(const item of services){
+            if(!item.quantity || item.quantity <= 0) {
+                return res.status(400).json({message: "Item quantity must be at least 1"});
+            }
             const service = await Service.findById(item.service);
             if(!service) return res.status(404).json({message: `Service ${item.service} not found`});
-            totalAmount += service.pricePerUnit * item.quantity;
+            itemsSubtotal += service.pricePerUnit * item.quantity;
         }
+
+        if(itemsSubtotal <= 0) {
+            return res.status(400).json({message: "Order items subtotal must be greater than zero"});
+        }
+
+        // Delivery fee: ₹49 unless items subtotal > ₹349; Express fee: ₹150 if isExpress
+        const deliveryCharge = itemsSubtotal > 349 ? 0 : 49;
+        const expressFee = isExpress ? 150 : 0;
+        const totalAmount = itemsSubtotal + deliveryCharge + expressFee;
 
         const priorityScore = isExpress ? 100 : 10;
 
         const order = await Order.create({
             customer: customerId,
             services,
-            pickupAddress,
+            pickupAddress: pickupAddress.trim(),
             pickupDate,
-            isExpress: isExpress || false,
+            isExpress: !!isExpress,
             priorityScore,
+            itemsSubtotal,
+            deliveryCharge,
+            expressFee,
             totalAmount,
-            currentStatus: "Placed",
-            statusHistory: [{status: "Placed", timestamp: new Date()}],
-        });
-
-        // Fire-and-forget order confirmation email notification
-        sendOrderConfirmationEmail(order, req.user).catch((err) => {
-            console.error("[OrderController] Failed to send order confirmation email:", err.message);
+            paymentStatus: "Pending",
+            currentStatus: "Draft",
+            orderVisibility: "Draft",
+            statusHistory: [{status: "Draft", timestamp: new Date()}],
         });
 
         res.status(201).json(order);
@@ -62,6 +91,14 @@ exports.getOrderById = async (req, res) => {
     try{
         const order = await Order.findById(req.params.id).populate("services.service");
         if(!order) return res.status(404).json({message: "Order not found"});
+
+        // IDOR Protection: only order owner or privileged role (admin / partner) can view order
+        const isOwner = order.customer.toString() === req.user.id;
+        const isPrivileged = req.user.role === "admin" || req.user.role === "partner";
+        if (!isOwner && !isPrivileged) {
+            return res.status(403).json({ message: "Not authorized to access this order" });
+        }
+
         res.json(order);
     }catch (err){
         res.status(500).json({message: err.message});
@@ -122,6 +159,20 @@ exports.updateOrderStatus = async (req, res) => {
 
     const order = await Order.findById(req.params.id);
     if (!order) return res.status(404).json({ message: "Order not found" });
+
+    // Partner assignment & authorization check
+    if (req.user.role === "partner") {
+      // If order is already assigned to another partner, block unauthorized mutation
+      if (order.assignedPartner && order.assignedPartner.toString() !== req.user.id) {
+        return res.status(403).json({ message: "Not authorized to update an order assigned to another partner" });
+      }
+      // If claiming/picking up an unassigned order, assign to this partner
+      if (!order.assignedPartner && (status === "PickedUp" || status === "OutForDelivery")) {
+        order.assignedPartner = req.user.id;
+      }
+    } else if (req.user.role !== "admin") {
+      return res.status(403).json({ message: "Not authorized to update order status" });
+    }
 
     order.currentStatus = status;
     order.statusHistory.push({ status, timestamp: new Date() });

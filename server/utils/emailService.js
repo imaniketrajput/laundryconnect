@@ -131,7 +131,7 @@ const renderEmailLayout = ({ title, preheader, contentHtml }) => {
 };
 
 // ─── Safe Dispatch Wrapper (Never Throws) ────────────────────────────────────
-const safeSendEmail = async ({ to, subject, html, emailType }) => {
+const safeSendEmail = async ({ to, subject, html, emailType, attachments }) => {
   try {
     if (!to) {
       console.warn(`[EmailService] Cannot send ${emailType}: No recipient email provided.`);
@@ -140,18 +140,25 @@ const safeSendEmail = async ({ to, subject, html, emailType }) => {
 
     const resend = getResendClient();
     if (!resend) {
-      console.log(`[EmailService] RESEND_API_KEY is not configured or placeholder. Simulated ${emailType} to <${to}>: "${subject}"`);
+      const attachInfo = attachments && attachments.length > 0 ? ` with ${attachments.length} attachment(s)` : "";
+      console.log(`[EmailService] RESEND_API_KEY is not configured or placeholder. Simulated ${emailType}${attachInfo} to <${to}>: "${subject}"`);
       return { success: true, simulated: true };
     }
 
     const fromAddress = process.env.RESEND_FROM_EMAIL || "LaundryConnect <onboarding@resend.dev>";
 
-    const { data, error } = await resend.emails.send({
+    const sendPayload = {
       from: fromAddress,
       to: [to],
       subject,
       html,
-    });
+    };
+
+    if (attachments && Array.isArray(attachments) && attachments.length > 0) {
+      sendPayload.attachments = attachments;
+    }
+
+    const { data, error } = await resend.emails.send(sendPayload);
 
     if (error) {
       console.error(`[EmailService] Resend error for ${emailType} to <${to}>:`, error);
@@ -322,16 +329,29 @@ exports.sendOrderConfirmationEmail = async (order, user) => {
             <table width="100%" border="0" cellpadding="0" cellspacing="0" style="border-top: 1px solid #334155; padding-top: 10px; margin-top: 10px;">
               ${serviceRows}
               <tr>
-                <td style="padding-top: 14px; color: #ffffff; font-size: 15px; font-weight: 800;">
+                <td style="padding-top: 10px; color: #94a3b8; font-size: 13px;">Items Subtotal</td>
+                <td align="right" style="padding-top: 10px; color: #ffffff; font-size: 13px; font-weight: 600;">₹${populatedOrder.itemsSubtotal ?? populatedOrder.totalAmount}</td>
+              </tr>
+              <tr>
+                <td style="padding-top: 6px; color: #94a3b8; font-size: 13px;">Delivery Charge</td>
+                <td align="right" style="padding-top: 6px; color: #ffffff; font-size: 13px; font-weight: 600;">${populatedOrder.deliveryCharge ? '₹' + populatedOrder.deliveryCharge : 'FREE'}</td>
+              </tr>
+              ${populatedOrder.isExpress ? `
+              <tr>
+                <td style="padding-top: 6px; color: #f59e0b; font-size: 13px;">⚡ Express Service Fee</td>
+                <td align="right" style="padding-top: 6px; color: #f59e0b; font-size: 13px; font-weight: 700;">+₹${populatedOrder.expressFee || 150}</td>
+              </tr>` : ''}
+              <tr style="border-top: 1px solid #334155;">
+                <td style="padding-top: 12px; color: #ffffff; font-size: 15px; font-weight: 800;">
                   Total Amount
                 </td>
-                <td align="right" style="padding-top: 14px; color: #f59e0b; font-size: 20px; font-weight: 900;">
+                <td align="right" style="padding-top: 12px; color: #f59e0b; font-size: 20px; font-weight: 900;">
                   ₹${populatedOrder.totalAmount}
                 </td>
               </tr>
               <tr>
-                <td style="color: #94a3b8; font-size: 12px;">Payment Status</td>
-                <td align="right" style="color: ${populatedOrder.paymentStatus === 'Paid' ? '#10b981' : '#f59e0b'}; font-size: 12px; font-weight: 700;">
+                <td style="color: #94a3b8; font-size: 12px; padding-top: 4px;">Payment Status</td>
+                <td align="right" style="color: ${populatedOrder.paymentStatus === 'Paid' ? '#10b981' : '#f59e0b'}; font-size: 12px; font-weight: 700; padding-top: 4px;">
                   ${populatedOrder.paymentStatus || 'Pending'}
                 </td>
               </tr>
@@ -370,7 +390,7 @@ exports.sendOrderConfirmationEmail = async (order, user) => {
 };
 
 // ─── 3. Send Payment Receipt Email ───────────────────────────────────────────
-exports.sendPaymentReceiptEmail = async (order, user, invoice) => {
+exports.sendPaymentReceiptEmail = async (order, user, invoice, pdfBuffer) => {
   try {
     const customer = await resolveCustomer(user, order);
     const populatedOrder = await resolveOrderWithServices(order);
@@ -381,10 +401,29 @@ exports.sendPaymentReceiptEmail = async (order, user, invoice) => {
     }
 
     const orderRef = populatedOrder._id ? populatedOrder._id.toString().slice(-8).toUpperCase() : "ORDER";
-    const paymentId = populatedOrder.razorpayPaymentId || (invoice && invoice.invoiceId) || "Verified";
+    const paymentId = populatedOrder.razorpayPaymentId || (invoice && invoice.transactionId) || "Verified";
     const paidAtStr = populatedOrder.paidAt ? new Date(populatedOrder.paidAt).toLocaleDateString("en-IN", {
       year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit"
     }) : new Date().toLocaleDateString("en-IN");
+
+    // Resolve or generate PDF buffer if not passed directly
+    let invoiceBuffer = pdfBuffer;
+    if (!invoiceBuffer) {
+      try {
+        const { generateInvoicePdf } = require("./invoiceGenerator");
+        invoiceBuffer = await generateInvoicePdf(populatedOrder);
+      } catch (pdfErr) {
+        console.warn("[EmailService] Could not auto-generate PDF buffer for email attachment:", pdfErr.message);
+      }
+    }
+
+    const attachments = [];
+    if (invoiceBuffer && Buffer.isBuffer(invoiceBuffer)) {
+      attachments.push({
+        filename: `Invoice-INV-${orderRef}.pdf`,
+        content: invoiceBuffer,
+      });
+    }
 
     const contentHtml = `
       <!-- Success Badge Header -->
@@ -397,7 +436,7 @@ exports.sendPaymentReceiptEmail = async (order, user, invoice) => {
       </div>
 
       <p style="margin: 0 0 20px 0; color: #cbd5e1; font-size: 14px;">
-        Hello <strong>${customer.name || "Customer"}</strong>, your payment for Order <strong>#${orderRef}</strong> has been verified and processed successfully. Here is your official payment receipt.
+        Hello <strong>${customer.name || "Customer"}</strong>, your payment for Order <strong>#${orderRef}</strong> has been verified and processed successfully. Your official tax invoice has been generated and is attached as a PDF to this email.
       </p>
 
       <!-- Transaction Details Box -->
@@ -422,6 +461,19 @@ exports.sendPaymentReceiptEmail = async (order, user, invoice) => {
                 <td align="right" style="color: #ffffff; font-size: 13px; padding-bottom: 8px;">${paidAtStr}</td>
               </tr>
               <tr style="border-top: 1px solid #334155;">
+                <td style="color: #94a3b8; font-size: 12px; padding-top: 10px;">Items Subtotal</td>
+                <td align="right" style="color: #ffffff; font-size: 13px; font-weight: 600; padding-top: 10px;">₹${populatedOrder.itemsSubtotal ?? populatedOrder.totalAmount}</td>
+              </tr>
+              <tr>
+                <td style="color: #94a3b8; font-size: 12px; padding-top: 6px;">Delivery Charge</td>
+                <td align="right" style="color: #ffffff; font-size: 13px; font-weight: 600; padding-top: 6px;">${populatedOrder.deliveryCharge ? '₹' + populatedOrder.deliveryCharge : 'FREE'}</td>
+              </tr>
+              ${populatedOrder.isExpress ? `
+              <tr>
+                <td style="color: #f59e0b; font-size: 12px; padding-top: 6px;">⚡ Express Service Fee</td>
+                <td align="right" style="color: #f59e0b; font-size: 13px; font-weight: 700; padding-top: 6px;">+₹${populatedOrder.expressFee || 150}</td>
+              </tr>` : ''}
+              <tr style="border-top: 1px solid #334155;">
                 <td style="color: #ffffff; font-size: 15px; font-weight: 800; padding-top: 12px;">Total Paid</td>
                 <td align="right" style="color: #10b981; font-size: 20px; font-weight: 900; padding-top: 12px;">₹${populatedOrder.totalAmount}</td>
               </tr>
@@ -430,16 +482,21 @@ exports.sendPaymentReceiptEmail = async (order, user, invoice) => {
         </tr>
       </table>
 
-      <p style="margin: 16px 0 24px 0; color: #94a3b8; font-size: 12px; text-align: center;">
-        A copy of your structured invoice has been registered and is downloadable at any time from your orders dashboard.
-      </p>
+      <!-- PDF Attachment Notice -->
+      <table width="100%" border="0" cellpadding="0" cellspacing="0" style="background-color: rgba(245, 158, 11, 0.08); border-radius: 8px; border: 1px dashed rgba(245, 158, 11, 0.4); margin: 16px 0 24px 0;">
+        <tr>
+          <td style="padding: 12px 16px; font-size: 12px; color: #f59e0b; text-align: center;">
+            📎 <strong>Official Invoice Attached:</strong> A printable PDF invoice (<code>Invoice-INV-${orderRef}.pdf</code>) is attached to this email.
+          </td>
+        </tr>
+      </table>
 
       <!-- CTA -->
       <table width="100%" border="0" cellpadding="0" cellspacing="0" style="margin: 20px 0 12px 0;">
         <tr>
           <td align="center">
             <a href="http://localhost:5173/orders" style="display: inline-block; background-color: #f59e0b; color: #0a0f1d; font-size: 13px; font-weight: 800; padding: 12px 28px; border-radius: 10px; text-decoration: none; text-transform: uppercase; letter-spacing: 0.5px;">
-              View Paid Order &amp; Invoice
+              View Paid Order in App
             </a>
           </td>
         </tr>
@@ -448,7 +505,7 @@ exports.sendPaymentReceiptEmail = async (order, user, invoice) => {
 
     const html = renderEmailLayout({
       title: `Payment Receipt #${orderRef}`,
-      preheader: `Your payment of ₹${populatedOrder.totalAmount} for Order #${orderRef} was successful.`,
+      preheader: `Your payment of ₹${populatedOrder.totalAmount} for Order #${orderRef} was successful. Invoice attached.`,
       contentHtml,
     });
 
@@ -457,6 +514,7 @@ exports.sendPaymentReceiptEmail = async (order, user, invoice) => {
       subject: `💳 Payment Receipt for Order #${orderRef} — LaundryConnect`,
       html,
       emailType: "Payment Receipt Email",
+      attachments,
     });
   } catch (err) {
     console.error("[EmailService] sendPaymentReceiptEmail caught error:", err.message);

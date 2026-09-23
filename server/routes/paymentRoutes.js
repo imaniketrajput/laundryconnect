@@ -4,7 +4,8 @@ const {
   createRazorpayOrder, 
   verifyPayment, 
   payForOrder, 
-  getInvoice 
+  getInvoice,
+  getInvoicePdf
 } = require("../controllers/paymentController");
 const { protect } = require("../middleware/auth");
 
@@ -15,5 +16,6 @@ router.post("/:orderId/razorpay/verify", protect, verifyPayment);
 // Legacy and invoice endpoints
 router.post("/:orderId/pay", protect, payForOrder);
 router.get("/:orderId/invoice", protect, getInvoice);
+router.get("/:orderId/invoice/pdf", protect, getInvoicePdf);
 
 module.exports = router;

@@ -9,7 +9,11 @@ const computePriority = (order) => {
 }
 
 const buildOrderQueue = async () =>{
-    const placeOrders = await Order.find({currentStatus: "Placed"});
+    const placeOrders = await Order.find({
+        currentStatus: "Placed",
+        paymentStatus: "Paid",
+        orderVisibility: "Visible",
+    });
 
     const pq = new PriorityQueue();
     placeOrders.forEach((order)=>{

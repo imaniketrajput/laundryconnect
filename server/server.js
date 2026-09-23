@@ -15,13 +15,26 @@ connectDB().then(()=> buildTrieFromDB());
 const app = express();
 
 // Middleware
-app.use(cors());
+const allowedOrigins = [
+  "http://localhost:5173",
+  "http://localhost:3000",
+  process.env.CLIENT_URL,
+].filter(Boolean);
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps, curl, server-to-server) or in allowed list
+    if (!origin || allowedOrigins.includes(origin) || allowedOrigins.some(o => origin.startsWith(o))) {
+      return callback(null, true);
+    }
+    return callback(null, true); // Fallback permissive for dev and preview deployments
+  },
+  credentials: true,
+}));
 app.use(express.json());
 
 // Routes
 app.use("/api/auth", require("./routes/authRoutes"));
-
-
 app.use("/api/services", require("./routes/serviceRoutes"));
 app.use("/api/orders", require("./routes/orderRoutes"));
 app.use("/api/slots", require("./routes/slotRoutes"));
@@ -34,7 +47,7 @@ const server = http.createServer(app);
 initSocket(server);
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () =>{
+server.listen(PORT, () =>{
     console.log(`Server running on port ${PORT}`);
 });
 

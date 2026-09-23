@@ -153,27 +153,35 @@ const PayNowModal = ({ order, onClose, onSuccess }) => {
             <ShieldCheck className="h-4 w-4" />
             <span>Secure Razorpay Checkout</span>
           </div>
-          <h2 className="text-xl font-black font-poppins">Pay for Order</h2>
+          <h2 className="text-xl font-black font-poppins">Complete Order Payment</h2>
           <p className="text-xs font-mono text-theme-muted mt-1 truncate">{order._id}</p>
         </div>
 
         <div className="p-6 space-y-5">
-          {/* Amount Due Card */}
-          <div className="bg-theme-elevated rounded-2xl p-4 border border-theme space-y-2">
+          {/* Amount Due Card with full cost breakdown */}
+          <div className="bg-theme-elevated rounded-2xl p-4 border border-theme space-y-2.5">
             <div className="flex items-center justify-between">
               <span className="text-sm font-bold text-theme-muted">Total Amount Due</span>
               <span className="text-2xl font-black text-theme-primary">₹{order.totalAmount}</span>
             </div>
-            <div className="flex items-center justify-between text-xs text-theme-muted border-t border-theme pt-2">
-              <span>Services</span>
-              <span className="font-semibold text-theme-primary">{order.services?.length || 1} Service Item(s)</span>
-            </div>
-            {order.isExpress && (
-              <div className="flex items-center justify-between text-xs text-theme-accent">
-                <span>Express Service</span>
-                <span className="font-bold">24-Hour Delivery</span>
+            <div className="border-t border-theme/60 pt-2 space-y-1.5 text-xs text-theme-muted">
+              <div className="flex justify-between">
+                <span>Items Subtotal:</span>
+                <span className="font-semibold text-theme-primary">₹{order.itemsSubtotal ?? order.totalAmount}</span>
               </div>
-            )}
+              <div className="flex justify-between">
+                <span>Delivery Charge:</span>
+                <span className="font-semibold text-theme-primary">
+                  {order.deliveryCharge ? `₹${order.deliveryCharge}` : 'FREE'}
+                </span>
+              </div>
+              {order.isExpress && (
+                <div className="flex justify-between text-theme-accent">
+                  <span>⚡ Express Delivery Fee:</span>
+                  <span className="font-bold">+₹{order.expressFee || 150}</span>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Payment Gateway Trust Info */}
@@ -237,17 +245,19 @@ const PayNowModal = ({ order, onClose, onSuccess }) => {
             )}
           </button>
 
-          {/* Fallback Simulation Button for Dev Testing */}
-          <div className="pt-1 text-center">
-            <button
-              type="button"
-              onClick={handleMockPay}
-              disabled={submitting || verifying || success}
-              className="text-xs text-theme-muted hover:text-theme-accent transition-colors underline-offset-4 hover:underline disabled:opacity-50 py-1"
-            >
-              Simulate Test Payment (Mark as Paid)
-            </button>
-          </div>
+          {/* Fallback Simulation Button for Dev Testing (disabled in production) */}
+          {import.meta.env.DEV && (
+            <div className="pt-1 text-center">
+              <button
+                type="button"
+                onClick={handleMockPay}
+                disabled={submitting || verifying || success}
+                className="text-xs text-theme-muted hover:text-theme-accent transition-colors underline-offset-4 hover:underline disabled:opacity-50 py-1"
+              >
+                Simulate Test Payment (Mark as Paid)
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -456,10 +466,10 @@ const MyOrders = () => {
                   {order.paymentStatus === 'Pending' && (
                     <button
                       onClick={() => setPayModal(order._id)}
-                      className="flex items-center space-x-1.5 px-4 py-2 bg-theme-accent text-[var(--accent-text)] rounded-xl text-xs font-black shadow-theme-accent transition-all theme-btn-hover"
+                      className="flex items-center space-x-1.5 px-3.5 py-1.5 bg-amber-500/15 border border-amber-500/40 text-amber-500 hover:bg-amber-500/25 rounded-xl text-xs font-bold transition-all"
                     >
-                      <CreditCard className="h-3.5 w-3.5" />
-                      <span>Pay Now</span>
+                      <RefreshCw className="h-3.5 w-3.5" />
+                      <span>Retry Payment</span>
                     </button>
                   )}
                   {order.paymentStatus === 'Paid' && (
@@ -493,6 +503,20 @@ const MyOrders = () => {
                     <p><strong className="text-theme-primary">Address:</strong> {order.pickupAddress}</p>
                     <p><strong className="text-theme-primary">Pickup Scheduled:</strong> {new Date(order.pickupDate).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
                   </div>
+                </div>
+              </div>
+
+              {/* ── Cost Breakdown Strip ───────────────────────────── */}
+              <div className="bg-theme-elevated/70 rounded-2xl p-3.5 border border-theme flex flex-wrap items-center justify-between gap-3 text-xs">
+                <div className="flex flex-wrap items-center gap-4 text-theme-muted">
+                  <span>Items Subtotal: <strong className="text-theme-primary">₹{order.itemsSubtotal ?? order.totalAmount}</strong></span>
+                  <span>Delivery: <strong className="text-theme-primary">{order.deliveryCharge ? `₹${order.deliveryCharge}` : 'FREE'}</strong></span>
+                  {order.isExpress && (
+                    <span className="text-theme-accent font-semibold">⚡ Express Fee: +₹{order.expressFee || 150}</span>
+                  )}
+                </div>
+                <div className="font-bold text-theme-primary">
+                  Order Total: <span className="text-theme-accent font-black text-sm">₹{order.totalAmount}</span>
                 </div>
               </div>
 
