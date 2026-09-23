@@ -8,9 +8,9 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-navy-900 text-white">
-        <div className="animate-spin rounded-full h-12 w-12 border-4 border-gold-500 border-t-transparent mb-4"></div>
-        <p className="text-navy-300 font-medium">Restoring your session...</p>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-theme-bg text-theme-primary transition-colors duration-200">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-theme-accent border-t-transparent mb-4"></div>
+        <p className="text-theme-muted font-medium">Restoring your session...</p>
       </div>
     );
   }

@@ -1,15 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../api/axios';
 import { 
-  Shield, Users, ClipboardList, Sparkles, Plus, 
-  MapPin, Loader2, Calendar, CheckCircle2, AlertCircle, Clock
+  Shield, Users, ClipboardList, Sparkles, 
+  Loader2, Clock, CheckCircle2, AlertCircle
 } from 'lucide-react';
 import { STATUS_COLORS } from '../customer/MyOrders';
+import { DashboardTableSkeleton } from '../../components/Skeleton';
 
 const ALL_STATUSES = ['Placed','PickedUp','Washing','Ready','OutForDelivery','Delivered','Cancelled'];
 
 const AdminDashboard = () => {
-  const [activeTab, setActiveTab] = useState('queue'); // 'queue', 'partners', 'services', 'slots'
+  const [activeTab, setActiveTab] = useState('queue');
   const [queue, setQueue] = useState([]);
   const [partners, setPartners] = useState([]);
   const [services, setServices] = useState([]);
@@ -21,7 +22,7 @@ const AdminDashboard = () => {
   const [newSlot, setNewSlot] = useState({ partnerId: '', date: '', startTime: '09:00', endTime: '11:00' });
   
   // Status flags
-  const [msg, setMsg] = useState({ text: '', type: '' }); // 'success' or 'error'
+  const [msg, setMsg] = useState({ text: '', type: '' });
   const [suggestedSlot, setSuggestedSlot] = useState('');
 
   // Per-row status update: { orderId: { updating, msg, type } }
@@ -129,27 +130,27 @@ const AdminDashboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-navy-50 py-10 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto space-y-8">
+    <div className="min-h-screen bg-theme-bg text-theme-primary py-10 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto space-y-8 transition-colors duration-200">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-extrabold text-navy-900 font-poppins flex items-center space-x-2">
-          <Shield className="h-8 w-8 text-gold-500" />
-          <span>Admin <span className="text-gold-600">Dashboard</span></span>
+        <h1 className="text-3xl font-extrabold text-theme-primary font-poppins flex items-center space-x-2">
+          <Shield className="h-8 w-8 text-theme-accent" />
+          <span>Admin <span className="text-theme-accent">Dashboard</span></span>
         </h1>
-        <p className="text-navy-500 text-sm mt-0.5">Control panel to configure partners, services, priority heap, and time slot intervals.</p>
+        <p className="text-theme-muted text-sm mt-0.5">Control panel to configure partners, services, priority heap, and time slot intervals.</p>
       </div>
 
       {/* Notifications */}
       {msg.text && (
         <div className={`p-4 rounded-2xl flex items-center space-x-2 border text-sm max-w-2xl ${
-          msg.type === 'success' ? 'bg-green-50 border-green-200 text-green-800' : 'bg-red-50 border-red-200 text-red-800'
+          msg.type === 'success' ? 'bg-green-500/10 border-green-500/30 text-green-500' : 'bg-red-500/10 border-red-500/30 text-red-500'
         }`}>
-          {msg.type === 'success' ? <CheckCircle2 className="h-5 w-5 text-green-600" /> : <AlertCircle className="h-5 w-5 text-red-600" />}
+          {msg.type === 'success' ? <CheckCircle2 className="h-5 w-5 text-green-500" /> : <AlertCircle className="h-5 w-5 text-red-500" />}
           <div>
             <p className="font-bold">{msg.text}</p>
             {suggestedSlot && (
-              <p className="text-xs mt-1 text-red-700">
-                Algorithm suggestion for next free slot: <strong className="bg-white border px-1.5 py-0.5 rounded font-mono text-red-600">{suggestedSlot}</strong>
+              <p className="text-xs mt-1 text-red-400">
+                Algorithm suggestion for next free slot: <strong className="bg-theme-elevated border border-theme px-1.5 py-0.5 rounded font-mono text-red-500">{suggestedSlot}</strong>
               </p>
             )}
           </div>
@@ -159,16 +160,16 @@ const AdminDashboard = () => {
       {/* Metrics Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {[
-          { label: 'Pending Heap Queue', value: queue.length, icon: ClipboardList, color: 'text-gold-500' },
-          { label: 'Registered Partners', value: partners.length, icon: Users, color: 'text-navy-900' },
-          { label: 'Active Services', value: services.length, icon: Sparkles, color: 'text-gold-600' }
+          { label: 'Pending Heap Queue', value: queue.length, icon: ClipboardList, color: 'text-theme-accent' },
+          { label: 'Registered Partners', value: partners.length, icon: Users, color: 'text-theme-primary' },
+          { label: 'Active Services', value: services.length, icon: Sparkles, color: 'text-theme-accent' }
         ].map((card, i) => (
-          <div key={i} className="bg-white p-6 rounded-3xl border border-navy-100 shadow-sm flex items-center justify-between">
+          <div key={i} className="bg-theme-card p-6 rounded-3xl border border-theme shadow-theme-sm flex items-center justify-between">
             <div>
-              <p className="text-xs text-navy-450 uppercase font-bold tracking-widest">{card.label}</p>
-              <p className="text-3xl font-black text-navy-950 mt-1">{card.value}</p>
+              <p className="text-xs text-theme-muted uppercase font-bold tracking-widest">{card.label}</p>
+              <p className="text-3xl font-black text-theme-primary mt-1">{card.value}</p>
             </div>
-            <div className="bg-navy-50 p-4 rounded-2xl">
+            <div className="bg-theme-elevated p-4 rounded-2xl border border-theme">
               <card.icon className={`h-6 w-6 ${card.color}`} />
             </div>
           </div>
@@ -176,7 +177,7 @@ const AdminDashboard = () => {
       </div>
 
       {/* Tab Selectors */}
-      <div className="flex border-b border-navy-200 overflow-x-auto gap-2">
+      <div className="flex border-b border-theme overflow-x-auto gap-2">
         {[
           { id: 'queue', label: 'Order Queue' },
           { id: 'partners', label: 'Partner Management' },
@@ -188,8 +189,8 @@ const AdminDashboard = () => {
             onClick={() => { setActiveTab(tab.id); setMsg({ text: '', type: '' }); setSuggestedSlot(''); }}
             className={`pb-3 px-4 font-bold text-sm border-b-2 whitespace-nowrap transition-colors ${
               activeTab === tab.id
-                ? 'border-gold-500 text-gold-600'
-                : 'border-transparent text-navy-500 hover:text-navy-900'
+                ? 'border-theme-accent text-theme-accent'
+                : 'border-transparent text-theme-muted hover:text-theme-primary'
             }`}
           >
             {tab.label}
@@ -198,22 +199,20 @@ const AdminDashboard = () => {
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-20">
-          <Loader2 className="h-8 w-8 animate-spin text-gold-500" />
-        </div>
+        <DashboardTableSkeleton />
       ) : (
-        <div className="bg-white p-6 rounded-3xl border border-navy-100 shadow-sm">
+        <div className="bg-theme-card p-6 rounded-3xl border border-theme shadow-theme-sm">
           {/* Active Queue Tab */}
           {activeTab === 'queue' && (
             <div className="space-y-4">
-              <h3 className="text-base font-bold text-navy-900 font-poppins">Priority Order Queue</h3>
+              <h3 className="text-base font-bold text-theme-primary font-poppins">Priority Order Queue</h3>
               {queue.length === 0 ? (
-                <p className="text-sm text-navy-400 py-6 text-center">No pending orders in the heap.</p>
+                <p className="text-sm text-theme-muted py-6 text-center">No pending orders in the heap.</p>
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left text-sm divide-y divide-navy-50">
+                  <table className="w-full text-left text-sm divide-y divide-theme">
                     <thead>
-                      <tr className="text-navy-450 text-xs font-bold uppercase tracking-wider">
+                      <tr className="text-theme-muted text-xs font-bold uppercase tracking-wider">
                         <th className="pb-3 pl-2">Order ID</th>
                         <th className="pb-3">Current Status</th>
                         <th className="pb-3 text-center">Priority</th>
@@ -221,12 +220,12 @@ const AdminDashboard = () => {
                         <th className="pb-3 pl-4">Update Status</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-navy-50 font-mono text-xs">
+                    <tbody className="divide-y divide-theme font-mono text-xs">
                       {queue.map(({ order, priority }) => {
                         const rs = rowStatus[order._id] || {};
                         return (
-                        <tr key={order._id} className="hover:bg-navy-50/50">
-                          <td className="py-3.5 pl-2 font-mono text-xs font-bold text-navy-900">{order._id.slice(-8)}</td>
+                        <tr key={order._id} className="hover:bg-theme-elevated/40 transition-colors">
+                          <td className="py-3.5 pl-2 font-mono text-xs font-bold text-theme-primary">{order._id.slice(-8)}</td>
                           <td className="py-3.5 font-sans">
                             <span className={`text-[9px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded border ${STATUS_COLORS[order.currentStatus] || 'bg-gray-100 text-gray-600 border-gray-200'}`}>
                               {order.currentStatus}
@@ -234,26 +233,26 @@ const AdminDashboard = () => {
                           </td>
                           <td className="py-3.5 text-center">
                             <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold ${
-                              order.isExpress ? 'bg-gold-100 text-gold-700' : 'bg-navy-50 text-navy-600'
+                              order.isExpress ? 'bg-theme-accent-light text-theme-accent border border-theme-accent' : 'bg-theme-elevated text-theme-muted border border-theme'
                             }`}>{priority}</span>
                           </td>
-                          <td className="py-3.5 text-right font-sans font-bold text-navy-950">₹{order.totalAmount}</td>
+                          <td className="py-3.5 text-right font-sans font-bold text-theme-primary">₹{order.totalAmount}</td>
                           <td className="py-3.5 pl-4">
                             <div className="flex flex-col gap-1.5 min-w-[160px]">
                               <select
                                 disabled={rs.updating}
                                 value={order.currentStatus}
                                 onChange={(e) => handleStatusChange(order._id, e.target.value)}
-                                className="text-xs bg-white border border-navy-200 rounded-xl px-2.5 py-1.5 text-navy-800 font-semibold focus:outline-none focus:border-gold-400 transition-colors disabled:opacity-60"
+                                className="text-xs bg-theme-elevated border border-theme rounded-xl px-2.5 py-1.5 text-theme-primary font-semibold focus:outline-none focus:border-theme-accent transition-colors disabled:opacity-60"
                               >
                                 {ALL_STATUSES.map((s) => (
                                   <option key={s} value={s}>{s}</option>
                                 ))}
                               </select>
-                              {rs.updating && <Loader2 className="h-3.5 w-3.5 animate-spin text-gold-500" />}
+                              {rs.updating && <Loader2 className="h-3.5 w-3.5 animate-spin text-theme-accent" />}
                               {!rs.updating && rs.msg && (
                                 <span className={`text-[10px] font-bold flex items-center gap-1 ${
-                                  rs.type === 'success' ? 'text-green-600' : 'text-red-600'
+                                  rs.type === 'success' ? 'text-green-500' : 'text-red-500'
                                 }`}>
                                   {rs.type === 'success'
                                     ? <CheckCircle2 className="h-3 w-3" />
@@ -279,29 +278,29 @@ const AdminDashboard = () => {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               {/* Partner List Table */}
               <div className="lg:col-span-2 space-y-4">
-                <h3 className="text-base font-bold text-navy-900 font-poppins">Delivery Partners</h3>
+                <h3 className="text-base font-bold text-theme-primary font-poppins">Delivery Partners</h3>
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left text-sm divide-y divide-navy-50">
+                  <table className="w-full text-left text-sm divide-y divide-theme">
                     <thead>
-                      <tr className="text-navy-450 text-xs font-bold uppercase tracking-wider">
+                      <tr className="text-theme-muted text-xs font-bold uppercase tracking-wider">
                         <th className="pb-3">Name</th>
                         <th className="pb-3">Vehicle</th>
                         <th className="pb-3">Locality</th>
                         <th className="pb-3 text-center">Rating</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-navy-50 text-xs font-sans">
+                    <tbody className="divide-y divide-theme text-xs font-sans">
                       {partners.map((pt) => (
                         <tr key={pt._id}>
-                          <td className="py-3.5 font-bold text-navy-900">
+                          <td className="py-3.5 font-bold text-theme-primary">
                             {pt.user?.name || 'Unassigned'}
-                            <span className="block text-[10px] font-mono text-navy-400 font-normal">{pt.user?._id}</span>
+                            <span className="block text-[10px] font-mono text-theme-muted font-normal">{pt.user?._id}</span>
                           </td>
-                          <td className="py-3.5">{pt.vehicleType}</td>
-                          <td className="py-3.5 text-navy-500 font-mono text-[10px]">
+                          <td className="py-3.5 text-theme-primary">{pt.vehicleType}</td>
+                          <td className="py-3.5 text-theme-muted font-mono text-[10px]">
                             {pt.currentLocation?.lat?.toFixed(4)}, {pt.currentLocation?.lng?.toFixed(4)}
                           </td>
-                          <td className="py-3.5 text-center font-bold text-gold-600">★ {pt.rating || '5.0'}</td>
+                          <td className="py-3.5 text-center font-bold text-theme-accent">★ {pt.rating || '5.0'}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -310,25 +309,25 @@ const AdminDashboard = () => {
               </div>
 
               {/* Add Partner Form */}
-              <form onSubmit={handleCreatePartner} className="space-y-4 bg-navy-50/50 p-6 rounded-2xl border border-navy-150 h-fit">
-                <h3 className="text-sm font-bold text-navy-900 font-poppins">Add Partner Profile</h3>
+              <form onSubmit={handleCreatePartner} className="space-y-4 bg-theme-elevated/40 p-6 rounded-2xl border border-theme h-fit">
+                <h3 className="text-sm font-bold text-theme-primary font-poppins">Add Partner Profile</h3>
                 <div>
-                  <label className="block text-[10px] font-bold text-navy-700 uppercase tracking-wider mb-1">User ID</label>
+                  <label className="block text-[10px] font-bold text-theme-muted uppercase tracking-wider mb-1">User ID</label>
                   <input
                     type="text"
                     required
                     placeholder="Enter User ObjectId"
                     value={newPartner.userId}
                     onChange={(e) => setNewPartner({ ...newPartner, userId: e.target.value })}
-                    className="w-full bg-white border border-navy-200 rounded-xl p-2 text-xs font-mono"
+                    className="w-full bg-theme-surface border border-theme rounded-xl p-2 text-xs font-mono text-theme-primary"
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold text-navy-700 uppercase tracking-wider mb-1">Vehicle Type</label>
+                  <label className="block text-[10px] font-bold text-theme-muted uppercase tracking-wider mb-1">Vehicle Type</label>
                   <select
                     value={newPartner.vehicleType}
                     onChange={(e) => setNewPartner({ ...newPartner, vehicleType: e.target.value })}
-                    className="w-full bg-white border border-navy-200 rounded-xl p-2 text-xs"
+                    className="w-full bg-theme-surface border border-theme rounded-xl p-2 text-xs text-theme-primary"
                   >
                     <option>Bike</option>
                     <option>Scooter</option>
@@ -337,29 +336,29 @@ const AdminDashboard = () => {
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="block text-[10px] font-bold text-navy-700 uppercase tracking-wider mb-1">Lat</label>
+                    <label className="block text-[10px] font-bold text-theme-muted uppercase tracking-wider mb-1">Lat</label>
                     <input
                       type="number"
                       step="any"
                       required
                       value={newPartner.lat}
                       onChange={(e) => setNewPartner({ ...newPartner, lat: e.target.value })}
-                      className="w-full bg-white border border-navy-200 rounded-xl p-2 text-xs font-mono"
+                      className="w-full bg-theme-surface border border-theme rounded-xl p-2 text-xs font-mono text-theme-primary"
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold text-navy-700 uppercase tracking-wider mb-1">Lng</label>
+                    <label className="block text-[10px] font-bold text-theme-muted uppercase tracking-wider mb-1">Lng</label>
                     <input
                       type="number"
                       step="any"
                       required
                       value={newPartner.lng}
                       onChange={(e) => setNewPartner({ ...newPartner, lng: e.target.value })}
-                      className="w-full bg-white border border-navy-200 rounded-xl p-2 text-xs font-mono"
+                      className="w-full bg-theme-surface border border-theme rounded-xl p-2 text-xs font-mono text-theme-primary"
                     />
                   </div>
                 </div>
-                <button type="submit" className="w-full py-2 bg-navy-900 text-white rounded-xl text-xs font-bold hover:bg-navy-850">
+                <button type="submit" className="w-full py-2 bg-theme-accent text-[var(--accent-text)] rounded-xl text-xs font-bold theme-btn-hover">
                   Instantiate Profile
                 </button>
               </form>
@@ -371,25 +370,25 @@ const AdminDashboard = () => {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               {/* Services List Table */}
               <div className="lg:col-span-2 space-y-4">
-                <h3 className="text-base font-bold text-navy-900 font-poppins">Active Services</h3>
+                <h3 className="text-base font-bold text-theme-primary font-poppins">Active Services</h3>
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left text-sm divide-y divide-navy-50">
+                  <table className="w-full text-left text-sm divide-y divide-theme">
                     <thead>
-                      <tr className="text-navy-450 text-xs font-bold uppercase tracking-wider">
+                      <tr className="text-theme-muted text-xs font-bold uppercase tracking-wider">
                         <th className="pb-3">Name</th>
                         <th className="pb-3">Category</th>
                         <th className="pb-3 text-right pr-2">Rate</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-navy-50 text-xs font-sans">
+                    <tbody className="divide-y divide-theme text-xs font-sans">
                       {services.map((svc) => (
                         <tr key={svc._id}>
-                          <td className="py-3 font-bold text-navy-900">
+                          <td className="py-3 font-bold text-theme-primary">
                             {svc.name}
-                            <span className="block text-[10px] font-normal text-navy-450">{svc.description}</span>
+                            <span className="block text-[10px] font-normal text-theme-muted">{svc.description}</span>
                           </td>
-                          <td className="py-3 capitalize">{svc.category}</td>
-                          <td className="py-3 text-right font-bold text-navy-950 pr-2">₹{svc.pricePerUnit} / {svc.unit}</td>
+                          <td className="py-3 capitalize text-theme-primary">{svc.category}</td>
+                          <td className="py-3 text-right font-bold text-theme-primary pr-2">₹{svc.pricePerUnit} / {svc.unit}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -398,25 +397,25 @@ const AdminDashboard = () => {
               </div>
 
               {/* Add Service Form */}
-              <form onSubmit={handleCreateService} className="space-y-4 bg-navy-50/50 p-6 rounded-2xl border border-navy-150 h-fit">
-                <h3 className="text-sm font-bold text-navy-900 font-poppins">Add Service</h3>
+              <form onSubmit={handleCreateService} className="space-y-4 bg-theme-elevated/40 p-6 rounded-2xl border border-theme h-fit">
+                <h3 className="text-sm font-bold text-theme-primary font-poppins">Add Service</h3>
                 <div>
-                  <label className="block text-[10px] font-bold text-navy-700 uppercase tracking-wider mb-1">Service Name</label>
+                  <label className="block text-[10px] font-bold text-theme-muted uppercase tracking-wider mb-1">Service Name</label>
                   <input
                     type="text"
                     required
                     placeholder="e.g. Silk Dry Clean"
                     value={newService.name}
                     onChange={(e) => setNewService({ ...newService, name: e.target.value })}
-                    className="w-full bg-white border border-navy-200 rounded-xl p-2 text-xs"
+                    className="w-full bg-theme-surface border border-theme rounded-xl p-2 text-xs text-theme-primary"
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold text-navy-700 uppercase tracking-wider mb-1">Category</label>
+                  <label className="block text-[10px] font-bold text-theme-muted uppercase tracking-wider mb-1">Category</label>
                   <select
                     value={newService.category}
                     onChange={(e) => setNewService({ ...newService, category: e.target.value })}
-                    className="w-full bg-white border border-navy-200 rounded-xl p-2 text-xs"
+                    className="w-full bg-theme-surface border border-theme rounded-xl p-2 text-xs text-theme-primary"
                   >
                     <option>Laundry</option>
                     <option>Dry Cleaning</option>
@@ -426,37 +425,37 @@ const AdminDashboard = () => {
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="block text-[10px] font-bold text-navy-700 uppercase tracking-wider mb-1">Rate (₹)</label>
+                    <label className="block text-[10px] font-bold text-theme-muted uppercase tracking-wider mb-1">Rate (₹)</label>
                     <input
                       type="number"
                       required
                       value={newService.pricePerUnit}
                       onChange={(e) => setNewService({ ...newService, pricePerUnit: parseInt(e.target.value) || '' })}
-                      className="w-full bg-white border border-navy-200 rounded-xl p-2 text-xs"
+                      className="w-full bg-theme-surface border border-theme rounded-xl p-2 text-xs text-theme-primary"
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold text-navy-700 uppercase tracking-wider mb-1">Unit</label>
+                    <label className="block text-[10px] font-bold text-theme-muted uppercase tracking-wider mb-1">Unit</label>
                     <input
                       type="text"
                       required
                       value={newService.unit}
                       onChange={(e) => setNewService({ ...newService, unit: e.target.value })}
-                      className="w-full bg-white border border-navy-200 rounded-xl p-2 text-xs"
+                      className="w-full bg-theme-surface border border-theme rounded-xl p-2 text-xs text-theme-primary"
                     />
                   </div>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold text-navy-700 uppercase tracking-wider mb-1">Description</label>
+                  <label className="block text-[10px] font-bold text-theme-muted uppercase tracking-wider mb-1">Description</label>
                   <textarea
                     rows="2"
                     value={newService.description}
                     onChange={(e) => setNewService({ ...newService, description: e.target.value })}
-                    className="w-full bg-white border border-navy-200 rounded-xl p-2 text-xs"
+                    className="w-full bg-theme-surface border border-theme rounded-xl p-2 text-xs text-theme-primary"
                     placeholder="Short description of service..."
                   />
                 </div>
-                <button type="submit" className="w-full py-2 bg-navy-900 text-white rounded-xl text-xs font-bold hover:bg-navy-850">
+                <button type="submit" className="w-full py-2 bg-theme-accent text-[var(--accent-text)] rounded-xl text-xs font-bold theme-btn-hover">
                   Register Service
                 </button>
               </form>
@@ -466,19 +465,19 @@ const AdminDashboard = () => {
           {/* Slot Booking Tab */}
           {activeTab === 'slots' && (
             <div className="max-w-xl mx-auto space-y-6">
-              <h3 className="text-base font-bold text-navy-900 font-poppins flex items-center space-x-1.5">
-                <Clock className="h-5 w-5 text-gold-500" />
+              <h3 className="text-base font-bold text-theme-primary font-poppins flex items-center space-x-1.5">
+                <Clock className="h-5 w-5 text-theme-accent" />
                 <span>Interval Slot Allocation</span>
               </h3>
               
-              <form onSubmit={handleBookSlot} className="space-y-4 bg-navy-50/50 p-6 rounded-3xl border border-navy-150">
+              <form onSubmit={handleBookSlot} className="space-y-4 bg-theme-elevated/40 p-6 rounded-3xl border border-theme">
                 <div>
-                  <label className="block text-[10px] font-bold text-navy-700 uppercase tracking-wider mb-1">Assign Partner</label>
+                  <label className="block text-[10px] font-bold text-theme-muted uppercase tracking-wider mb-1">Assign Partner</label>
                   <select
                     required
                     value={newSlot.partnerId}
                     onChange={(e) => setNewSlot({ ...newSlot, partnerId: e.target.value })}
-                    className="w-full bg-white border border-navy-200 rounded-xl p-2.5 text-xs"
+                    className="w-full bg-theme-surface border border-theme rounded-xl p-2.5 text-xs text-theme-primary"
                   >
                     <option value="">Select Partner Profile...</option>
                     {partners.map(pt => (
@@ -487,40 +486,40 @@ const AdminDashboard = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold text-navy-700 uppercase tracking-wider mb-1">Schedule Date</label>
+                  <label className="block text-[10px] font-bold text-theme-muted uppercase tracking-wider mb-1">Schedule Date</label>
                   <input
                     type="date"
                     required
                     value={newSlot.date}
                     onChange={(e) => setNewSlot({ ...newSlot, date: e.target.value })}
-                    className="w-full bg-white border border-navy-200 rounded-xl p-2.5 text-xs"
+                    className="w-full bg-theme-surface border border-theme rounded-xl p-2.5 text-xs text-theme-primary"
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-[10px] font-bold text-navy-700 uppercase tracking-wider mb-1">Start Time</label>
+                    <label className="block text-[10px] font-bold text-theme-muted uppercase tracking-wider mb-1">Start Time</label>
                     <input
                       type="text"
                       required
                       placeholder="e.g. 09:00"
                       value={newSlot.startTime}
                       onChange={(e) => setNewSlot({ ...newSlot, startTime: e.target.value })}
-                      className="w-full bg-white border border-navy-200 rounded-xl p-2.5 text-xs font-mono"
+                      className="w-full bg-theme-surface border border-theme rounded-xl p-2.5 text-xs font-mono text-theme-primary"
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold text-navy-700 uppercase tracking-wider mb-1">End Time</label>
+                    <label className="block text-[10px] font-bold text-theme-muted uppercase tracking-wider mb-1">End Time</label>
                     <input
                       type="text"
                       required
                       placeholder="e.g. 11:00"
                       value={newSlot.endTime}
                       onChange={(e) => setNewSlot({ ...newSlot, endTime: e.target.value })}
-                      className="w-full bg-white border border-navy-200 rounded-xl p-2.5 text-xs font-mono"
+                      className="w-full bg-theme-surface border border-theme rounded-xl p-2.5 text-xs font-mono text-theme-primary"
                     />
                   </div>
                 </div>
-                <button type="submit" className="w-full py-3 bg-navy-900 text-white rounded-2xl text-xs font-bold hover:bg-navy-850 shadow-md">
+                <button type="submit" className="w-full py-3 bg-theme-accent text-[var(--accent-text)] rounded-2xl text-xs font-bold theme-btn-hover shadow-md">
                   Book Partner Slot
                 </button>
               </form>

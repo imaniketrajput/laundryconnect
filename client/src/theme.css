@@ -1,0 +1,427 @@
+/* ==========================================================================
+   LaundryConnect Multi-Theme System
+   Four Themes: Midnight Gold (default), Light Classic, Aurora, Sunrise
+   ========================================================================== */
+
+/* ── 1. Midnight Gold (Default: Sleek Navy & Gold Dark Mode) ─────────────── */
+:root,
+html[data-theme="midnight"] {
+  --bg-primary: #0a0f1d;
+  --bg-secondary: #0f172a;
+  --surface: #111827;
+  --surface-card: #151f32;
+  --surface-elevated: #1e293b;
+  --surface-hover: #1e2942;
+  --text-primary: #f8fafc;
+  --text-muted: #94a3b8;
+  --text-subtle: #64748b;
+  --text-inverse: #0f172a;
+  --hero-text: #f8fafc;
+  --hero-text-muted: #94a3b8;
+  --accent: #f59e0b;
+  --accent-hover: #d97706;
+  --accent-light: rgba(245, 158, 11, 0.14);
+  --accent-text: #0a0f1d;
+  --accent-gradient: linear-gradient(135deg, #fbbf24 0%, #f59e0b 50%, #d97706 100%);
+  --hero-gradient: linear-gradient(135deg, #050811 0%, #0a0f1d 50%, #151f32 100%);
+  --card-gradient: linear-gradient(180deg, rgba(21, 31, 50, 0.95) 0%, rgba(17, 24, 39, 0.98) 100%);
+  --border: rgba(255, 255, 255, 0.08);
+  --border-light: rgba(255, 255, 255, 0.04);
+  --border-accent: rgba(245, 158, 11, 0.3);
+  --shadow-color: rgba(0, 0, 0, 0.45);
+  --accent-shadow: rgba(245, 158, 11, 0.25);
+  --input-bg: rgba(15, 23, 42, 0.8);
+  --navbar-bg: rgba(10, 15, 29, 0.85);
+  --blob-color-1: rgba(245, 158, 11, 0.15);
+  --blob-color-2: rgba(59, 130, 246, 0.12);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-bg: rgba(17, 24, 39, 0.7);
+  color-scheme: dark;
+}
+
+/* ── 2. Light Classic (Crisp White / Slate with Gold Accent) ─────────────── */
+html[data-theme="light"] {
+  --bg-primary: #f8fafc;
+  --bg-secondary: #f1f5f9;
+  --surface: #ffffff;
+  --surface-card: #ffffff;
+  --surface-elevated: #f8fafc;
+  --surface-hover: #f1f5f9;
+  --text-primary: #0f172a;
+  --text-muted: #64748b;
+  --text-subtle: #94a3b8;
+  --text-inverse: #ffffff;
+  --hero-text: #ffffff;
+  --hero-text-muted: #cbd5e1;
+  --accent: #f59e0b;
+  --accent-hover: #d97706;
+  --accent-light: #fef3c7;
+  --accent-text: #0f172a;
+  --accent-gradient: linear-gradient(135deg, #fbbf24 0%, #f59e0b 50%, #d97706 100%);
+  --hero-gradient: linear-gradient(135deg, #0f172a 0%, #1e293b 60%, #334155 100%);
+  --card-gradient: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  --border: #e2e8f0;
+  --border-light: #f1f5f9;
+  --border-accent: rgba(245, 158, 11, 0.35);
+  --shadow-color: rgba(15, 23, 42, 0.08);
+  --accent-shadow: rgba(245, 158, 11, 0.2);
+  --input-bg: #f8fafc;
+  --navbar-bg: rgba(255, 255, 255, 0.9);
+  --blob-color-1: rgba(245, 158, 11, 0.12);
+  --blob-color-2: rgba(99, 102, 241, 0.08);
+  --glass-border: rgba(15, 23, 42, 0.08);
+  --glass-bg: rgba(255, 255, 255, 0.85);
+  color-scheme: light;
+}
+
+/* ── 3. Aurora (Deep Purple-to-Teal Gradients & Frosted Glass) ──────────── */
+html[data-theme="aurora"] {
+  --bg-primary: #09071a;
+  --bg-secondary: #120d2b;
+  --surface: rgba(24, 16, 48, 0.85);
+  --surface-card: rgba(30, 20, 58, 0.7);
+  --surface-elevated: rgba(45, 30, 84, 0.8);
+  --surface-hover: rgba(55, 38, 98, 0.85);
+  --text-primary: #f5f3ff;
+  --text-muted: #c4b5fd;
+  --text-subtle: #8b5cf6;
+  --text-inverse: #09071a;
+  --hero-text: #f5f3ff;
+  --hero-text-muted: #c4b5fd;
+  --accent: #06b6d4;
+  --accent-hover: #0891b2;
+  --accent-light: rgba(6, 182, 212, 0.16);
+  --accent-text: #09071a;
+  --accent-gradient: linear-gradient(135deg, #8b5cf6 0%, #06b6d4 100%);
+  --hero-gradient: linear-gradient(135deg, #100726 0%, #1e1045 45%, #082938 100%);
+  --card-gradient: linear-gradient(135deg, rgba(139, 92, 246, 0.12) 0%, rgba(6, 182, 212, 0.08) 100%);
+  --border: rgba(167, 139, 250, 0.22);
+  --border-light: rgba(255, 255, 255, 0.08);
+  --border-accent: rgba(6, 182, 212, 0.4);
+  --shadow-color: rgba(139, 92, 246, 0.25);
+  --accent-shadow: rgba(6, 182, 212, 0.35);
+  --input-bg: rgba(24, 16, 48, 0.85);
+  --navbar-bg: rgba(9, 7, 26, 0.88);
+  --blob-color-1: rgba(139, 92, 246, 0.28);
+  --blob-color-2: rgba(6, 182, 212, 0.24);
+  --glass-border: rgba(167, 139, 250, 0.3);
+  --glass-bg: rgba(26, 17, 49, 0.7);
+  color-scheme: dark;
+}
+
+/* ── 4. Sunrise (Warm Cream, Coral / Orange Accents, Soft Shadows) ───────── */
+html[data-theme="sunrise"] {
+  --bg-primary: #fffbf5;
+  --bg-secondary: #fff5eb;
+  --surface: #ffffff;
+  --surface-card: #ffffff;
+  --surface-elevated: #fff6ec;
+  --surface-hover: #feede0;
+  --text-primary: #291e14;
+  --text-muted: #786c5e;
+  --text-subtle: #a89f91;
+  --text-inverse: #ffffff;
+  --hero-text: #fffbf5;
+  --hero-text-muted: #fed7aa;
+  --accent: #f97316;
+  --accent-hover: #ea580c;
+  --accent-light: #ffedd5;
+  --accent-text: #ffffff;
+  --accent-gradient: linear-gradient(135deg, #f43f5e 0%, #fb923c 100%);
+  --hero-gradient: linear-gradient(135deg, #2c140e 0%, #4a2118 50%, #682e1d 100%);
+  --card-gradient: linear-gradient(180deg, #ffffff 0%, #fff7ed 100%);
+  --border: #fed7aa;
+  --border-light: #ffedd5;
+  --border-accent: rgba(249, 115, 22, 0.35);
+  --shadow-color: rgba(234, 88, 12, 0.08);
+  --accent-shadow: rgba(249, 115, 22, 0.25);
+  --input-bg: #fffbf5;
+  --navbar-bg: rgba(255, 251, 245, 0.92);
+  --blob-color-1: rgba(244, 63, 94, 0.16);
+  --blob-color-2: rgba(249, 115, 22, 0.18);
+  --glass-border: rgba(254, 215, 170, 0.4);
+  --glass-bg: rgba(255, 251, 245, 0.88);
+  color-scheme: light;
+}
+
+/* ── Global Theme Utility Classes ────────────────────────────────────────── */
+.bg-theme-bg {
+  background-color: var(--bg-primary);
+}
+
+.bg-theme-secondary {
+  background-color: var(--bg-secondary);
+}
+
+.bg-theme-surface {
+  background-color: var(--surface);
+}
+
+.bg-theme-card {
+  background-color: var(--surface-card);
+}
+
+.bg-theme-elevated {
+  background-color: var(--surface-elevated);
+}
+
+.text-theme-primary {
+  color: var(--text-primary);
+}
+
+.text-theme-muted {
+  color: var(--text-muted);
+}
+
+.text-theme-subtle {
+  color: var(--text-subtle);
+}
+
+.text-theme-accent {
+  color: var(--accent);
+}
+
+.text-theme-hero {
+  color: var(--hero-text);
+}
+
+.text-theme-hero-muted {
+  color: var(--hero-text-muted);
+}
+
+.bg-theme-accent {
+  background-color: var(--accent);
+}
+
+.bg-theme-accent-light {
+  background-color: var(--accent-light);
+}
+
+.border-theme {
+  border-color: var(--border);
+}
+
+.border-theme-light {
+  border-color: var(--border-light);
+}
+
+.border-theme-accent {
+  border-color: var(--border-accent);
+}
+
+.bg-theme-gradient {
+  background: var(--accent-gradient);
+}
+
+.bg-theme-hero {
+  background: var(--hero-gradient);
+  color: var(--hero-text);
+}
+
+.bg-theme-hero .text-theme-primary {
+  color: var(--hero-text);
+}
+
+.bg-theme-hero .text-theme-muted {
+  color: var(--hero-text-muted);
+}
+
+/* If a card or surface is nested inside a hero gradient, restore normal surface text contrast */
+.bg-theme-hero .bg-theme-surface .text-theme-primary,
+.bg-theme-hero .bg-theme-card .text-theme-primary,
+.bg-theme-hero .bg-theme-elevated .text-theme-primary {
+  color: var(--text-primary);
+}
+
+.bg-theme-hero .bg-theme-surface .text-theme-muted,
+.bg-theme-hero .bg-theme-card .text-theme-muted,
+.bg-theme-hero .bg-theme-elevated .text-theme-muted {
+  color: var(--text-muted);
+}
+
+/* Frosted glass utility respecting current theme */
+.theme-glass {
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+}
+
+/* Micro-interaction card hover */
+.theme-card-hover {
+  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+}
+
+.theme-card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px -4px var(--shadow-color);
+  border-color: var(--border-accent);
+}
+
+/* Micro-interaction button hover */
+.theme-btn-hover {
+  transition: transform 180ms ease, box-shadow 180ms ease, opacity 180ms ease;
+}
+
+.theme-btn-hover:hover {
+  transform: translateY(-1px) scale(1.01);
+  box-shadow: 0 8px 20px -3px var(--accent-shadow);
+}
+
+.theme-btn-hover:active {
+  transform: translateY(0) scale(0.99);
+}
+
+/* ── Shimmer Loading Animation ───────────────────────────────────────────── */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--surface-elevated) 0%,
+    var(--surface-hover) 50%,
+    var(--surface-elevated) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.8s infinite ease-in-out;
+}
+
+/* ── Ambient Floating Blobs (Hero background) ────────────────────────────── */
+@keyframes floatBlob {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+  33% {
+    transform: translate(30px, -40px) scale(1.08);
+  }
+  66% {
+    transform: translate(-20px, 20px) scale(0.95);
+  }
+}
+
+@keyframes floatBlobReverse {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+  33% {
+    transform: translate(-35px, 30px) scale(0.94);
+  }
+  66% {
+    transform: translate(25px, -25px) scale(1.06);
+  }
+}
+
+.floating-blob-1 {
+  animation: floatBlob 16s ease-in-out infinite;
+  background-color: var(--blob-color-1);
+}
+
+.floating-blob-2 {
+  animation: floatBlobReverse 18s ease-in-out infinite;
+  background-color: var(--blob-color-2);
+}
+
+/* ── Hero Image Frame (Theme-Native Treatment) ───────────────────────────── */
+.hero-image-frame {
+  position: relative;
+  transition: transform 300ms ease, box-shadow 300ms ease, border-color 300ms ease, border-radius 300ms ease;
+}
+
+.hero-image-frame .hero-image {
+  width: 100%;
+  height: auto;
+  display: block;
+  object-fit: cover;
+  transition: border-radius 300ms ease;
+}
+
+/* 1. Midnight Gold: Clean bordered frame, subtle accent outer glow, thin inner highlight border */
+:root .hero-image-frame,
+html[data-theme="midnight"] .hero-image-frame {
+  border-radius: 1.5rem;
+  border: 1px solid var(--border-accent);
+  background: var(--surface-card);
+  padding: 6px;
+  box-shadow: 
+    0 20px 45px -10px var(--shadow-color),
+    0 0 35px 2px var(--accent-shadow);
+}
+
+:root .hero-image-frame .hero-image,
+html[data-theme="midnight"] .hero-image-frame .hero-image {
+  border-radius: calc(1.5rem - 6px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+/* 2. Light Classic: Soft elevated shadow, clean white card lift, no visible border line */
+html[data-theme="light"] .hero-image-frame {
+  border-radius: 1.5rem;
+  border: none;
+  background: #ffffff;
+  padding: 8px;
+  box-shadow: 
+    0 25px 50px -12px rgba(0, 0, 0, 0.35),
+    0 12px 24px -6px rgba(15, 23, 42, 0.22);
+}
+
+html[data-theme="light"] .hero-image-frame .hero-image {
+  border-radius: calc(1.5rem - 8px);
+  border: none;
+}
+
+/* 3. Aurora: Frosted glass, backdrop-blur, purple-to-teal gradient border, ambient cyan/purple glow */
+html[data-theme="aurora"] .hero-image-frame {
+  border-radius: 1.5rem;
+  padding: 10px;
+  background: rgba(26, 17, 49, 0.55);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  position: relative;
+  box-shadow: 
+    0 20px 45px -10px rgba(9, 7, 26, 0.7),
+    0 0 35px 2px rgba(6, 182, 212, 0.35),
+    0 0 50px 8px rgba(139, 92, 246, 0.25);
+}
+
+html[data-theme="aurora"] .hero-image-frame::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 1.5rem;
+  padding: 1.5px;
+  background: var(--accent-gradient);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+html[data-theme="aurora"] .hero-image-frame .hero-image {
+  border-radius: calc(1.5rem - 10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* 4. Sunrise: Soft warm rounded (larger radius), warm coral/amber glow shadow, no hard-edged line */
+html[data-theme="sunrise"] .hero-image-frame {
+  border-radius: 2.25rem;
+  border: none;
+  background: linear-gradient(180deg, #ffffff 0%, #fff7ed 100%);
+  padding: 8px;
+  box-shadow: 
+    0 25px 50px -12px rgba(44, 20, 14, 0.35),
+    0 0 40px 4px rgba(249, 115, 22, 0.35),
+    0 0 20px 2px rgba(251, 146, 60, 0.25);
+}
+
+html[data-theme="sunrise"] .hero-image-frame .hero-image {
+  border-radius: calc(2.25rem - 8px);
+  border: none;
+}
+

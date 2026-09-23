@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import api from '../../api/axios';
 import {
   Truck, Zap, Navigation, Loader2,
-  MapPin, RefreshCw, AlertTriangle, CheckCircle2, AlertCircle
+  RefreshCw, AlertTriangle, CheckCircle2, AlertCircle
 } from 'lucide-react';
 import { STATUS_COLORS } from '../customer/MyOrders';
+import { DashboardTableSkeleton } from '../../components/Skeleton';
 
 const MOCK_COORDS = [
   { lat: 12.9740, lng: 77.5920 },
@@ -122,27 +123,27 @@ const PartnerDashboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-navy-50 py-10 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto space-y-8">
+    <div className="min-h-screen bg-theme-bg text-theme-primary py-10 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto space-y-8 transition-colors duration-200">
       {/* Dashboard Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-extrabold text-navy-900 font-poppins flex items-center space-x-2">
-            <Truck className="h-8 w-8 text-gold-500" />
-            <span>Partner <span className="text-gold-600">Dashboard</span></span>
+          <h1 className="text-3xl font-extrabold text-theme-primary font-poppins flex items-center space-x-2">
+            <Truck className="h-8 w-8 text-theme-accent" />
+            <span>Partner <span className="text-theme-accent">Dashboard</span></span>
           </h1>
-          <p className="text-navy-500 text-sm mt-0.5">Heap Priority Queue &amp; Dijkstra Route Optimization Controls.</p>
+          <p className="text-theme-muted text-sm mt-0.5">Heap Priority Queue &amp; Dijkstra Route Optimization Controls.</p>
         </div>
         <div className="flex gap-2">
           <button
             onClick={handleGetNext}
-            className="flex items-center space-x-1.5 px-5 py-3 bg-gold-500 hover:bg-gold-600 text-navy-950 rounded-2xl text-sm font-bold shadow-md shadow-gold-500/10 transition-all active:scale-95"
+            className="flex items-center space-x-1.5 px-5 py-3 bg-theme-accent text-[var(--accent-text)] rounded-2xl text-sm font-bold shadow-theme-accent transition-all theme-btn-hover"
           >
-            <Zap className="h-4 w-4 fill-navy-950" />
+            <Zap className="h-4 w-4 fill-current" />
             <span>Process Next Order</span>
           </button>
           <button
             onClick={fetchQueue}
-            className="p-3 bg-white hover:bg-navy-50 text-navy-600 rounded-2xl border border-navy-200 shadow-sm transition-colors"
+            className="p-3 bg-theme-card hover:bg-theme-elevated text-theme-primary rounded-2xl border border-theme shadow-theme-sm transition-colors"
             title="Refresh Heap"
           >
             <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
@@ -152,7 +153,7 @@ const PartnerDashboard = () => {
 
       {/* Error Banner */}
       {error && (
-        <div className="flex items-center space-x-2 bg-red-50 border border-red-200 rounded-2xl p-4 text-red-700 text-sm max-w-2xl">
+        <div className="flex items-center space-x-2 bg-red-500/10 border border-red-500/30 rounded-2xl p-4 text-red-500 text-sm max-w-2xl">
           <AlertTriangle className="h-5 w-5 flex-shrink-0" />
           <span>{error}</span>
         </div>
@@ -160,187 +161,186 @@ const PartnerDashboard = () => {
 
       {/* Extracted Next Order */}
       {nextOrder && (
-        <div className="bg-gradient-to-r from-navy-900 to-navy-950 text-white rounded-3xl border border-gold-500/30 p-6 shadow-xl space-y-4">
+        <div className="bg-theme-hero text-theme-primary rounded-3xl border border-theme-accent p-6 shadow-xl space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
-              <span className="bg-gold-500 text-navy-950 px-2.5 py-0.5 rounded font-extrabold text-[9px] uppercase tracking-wider">Priority Target</span>
-              <h3 className="text-lg font-bold font-poppins">extracted from heap</h3>
+              <span className="bg-theme-accent text-[var(--accent-text)] px-2.5 py-0.5 rounded font-extrabold text-[9px] uppercase tracking-wider">Priority Target</span>
+              <h3 className="text-lg font-bold font-poppins">Extracted from Heap</h3>
             </div>
-            <span className="text-xs text-gold-400 font-mono font-bold">Priority Score: {nextOrder.priority}</span>
+            <span className="text-xs text-theme-accent font-mono font-bold">Priority Score: {nextOrder.priority}</span>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm bg-white/5 p-4 rounded-2xl border border-white/5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm bg-theme-surface/50 p-4 rounded-2xl border border-theme">
             <div>
-              <p className="text-navy-300 text-xs">Order Reference:</p>
-              <p className="font-mono font-semibold pt-0.5">{nextOrder.order._id}</p>
-              <p className="text-navy-300 text-xs mt-3">Pickup Address:</p>
-              <p className="font-semibold pt-0.5">{nextOrder.order.pickupAddress}</p>
+              <p className="text-theme-muted text-xs">Order Reference:</p>
+              <p className="font-mono font-semibold pt-0.5 text-theme-primary">{nextOrder.order._id}</p>
+              <p className="text-theme-muted text-xs mt-3">Pickup Address:</p>
+              <p className="font-semibold pt-0.5 text-theme-primary">{nextOrder.order.pickupAddress}</p>
             </div>
             <div>
-              <p className="text-navy-300 text-xs">Total Amount:</p>
-              <p className="text-lg font-black text-gold-400">₹{nextOrder.order.totalAmount}</p>
-              <p className="text-navy-300 text-xs mt-2.5">Schedule Time:</p>
-              <p className="font-semibold pt-0.5">{new Date(nextOrder.order.pickupDate).toLocaleDateString()}</p>
+              <p className="text-theme-muted text-xs">Total Amount:</p>
+              <p className="text-lg font-black text-theme-accent">₹{nextOrder.order.totalAmount}</p>
+              <p className="text-theme-muted text-xs mt-2.5">Schedule Time:</p>
+              <p className="font-semibold pt-0.5 text-theme-primary">{new Date(nextOrder.order.pickupDate).toLocaleDateString()}</p>
             </div>
           </div>
         </div>
       )}
 
       {/* Main Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      {loading ? (
+        <DashboardTableSkeleton />
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Heap Queue Table */}
+          <div className="lg:col-span-2 bg-theme-card p-6 rounded-3xl border border-theme shadow-theme-sm space-y-4">
+            <h2 className="text-lg font-bold text-theme-primary font-poppins border-b border-theme pb-3">Heap Priority Queue</h2>
 
-        {/* Heap Queue Table */}
-        <div className="lg:col-span-2 bg-white p-6 rounded-3xl border border-navy-100 shadow-sm space-y-4">
-          <h2 className="text-lg font-bold text-navy-900 font-poppins border-b border-navy-50 pb-3">Heap Priority Queue</h2>
-
-          {loading ? (
-            <div className="flex justify-center items-center py-20">
-              <Loader2 className="h-8 w-8 animate-spin text-gold-500" />
-            </div>
-          ) : queue.length === 0 ? (
-            <div className="text-center py-20 text-navy-450">
-              <p className="text-sm">No pending orders in the queue.</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm divide-y divide-navy-50">
-                <thead>
-                  <tr className="text-navy-450 text-xs font-bold uppercase tracking-wider">
-                    <th className="pb-3.5 pl-2">Select</th>
-                    <th className="pb-3.5">Order ID</th>
-                    <th className="pb-3.5">Address</th>
-                    <th className="pb-3.5 text-center">Score</th>
-                    <th className="pb-3.5 text-right">Amount</th>
-                    <th className="pb-3.5 pl-4">Update Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-navy-50 font-sans">
-                  {queue.map(({ order, priority }) => {
-                    const rs = rowStatus[order._id] || {};
-                    return (
-                      <tr key={order._id} className="hover:bg-navy-50/50 transition-colors">
-                        <td className="py-3.5 pl-2">
-                          <input
-                            type="checkbox"
-                            checked={selectedStops.includes(order._id)}
-                            onChange={() => handleToggleStop(order._id)}
-                            className="w-4 h-4 rounded text-gold-500 focus:ring-gold-500"
-                          />
-                        </td>
-                        <td className="py-3.5 font-mono text-xs font-bold text-navy-800">
-                          {order._id.substring(order._id.length - 8)}
-                        </td>
-                        <td className="py-3.5 text-xs text-navy-600 max-w-[160px] truncate" title={order.pickupAddress}>
-                          {order.pickupAddress}
-                        </td>
-                        <td className="py-3.5 text-center">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold ${
-                            order.isExpress ? 'bg-gold-100 text-gold-700' : 'bg-navy-50 text-navy-550'
-                          }`}>
-                            {priority}
-                          </span>
-                        </td>
-                        <td className="py-3.5 text-right font-bold text-navy-900 pr-2">
-                          ₹{order.totalAmount}
-                        </td>
-
-                        {/* ── Status Control ── */}
-                        <td className="py-3.5 pl-4">
-                          <div className="flex flex-col gap-1.5 min-w-[160px]">
-                            {/* Current badge */}
-                            <span className={`self-start text-[9px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded border ${STATUS_COLORS[order.currentStatus] || 'bg-gray-100 text-gray-600 border-gray-200'}`}>
-                              {order.currentStatus}
-                            </span>
-                            {/* Dropdown */}
-                            <select
-                              disabled={rs.updating}
-                              value={order.currentStatus}
-                              onChange={(e) => handleStatusChange(order._id, e.target.value)}
-                              className="text-xs bg-white border border-navy-200 rounded-xl px-2.5 py-1.5 text-navy-800 font-semibold focus:outline-none focus:border-gold-400 transition-colors disabled:opacity-60"
-                            >
-                              {PARTNER_STATUSES.map((s) => (
-                                <option key={s} value={s}>{s}</option>
-                              ))}
-                            </select>
-                            {/* Feedback */}
-                            {rs.updating && <Loader2 className="h-3.5 w-3.5 animate-spin text-gold-500" />}
-                            {!rs.updating && rs.msg && (
-                              <span className={`text-[10px] font-bold flex items-center gap-1 ${rs.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>
-                                {rs.type === 'success'
-                                  ? <CheckCircle2 className="h-3 w-3" />
-                                  : <AlertCircle className="h-3 w-3" />
-                                }
-                                {rs.msg}
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-
-        {/* Route Optimizer */}
-        <div className="bg-white p-6 rounded-3xl border border-navy-100 shadow-sm space-y-6">
-          <div className="space-y-1">
-            <h2 className="text-lg font-bold text-navy-900 font-poppins flex items-center space-x-1.5">
-              <Navigation className="h-5 w-5 text-gold-500" />
-              <span>Route Optimizer</span>
-            </h2>
-            <p className="text-xs text-navy-450 leading-relaxed">
-              Select orders from the heap queue to generate a Dijkstra-optimized delivery path from the hub.
-            </p>
-          </div>
-
-          <div className="border border-navy-100 bg-navy-50/50 p-4 rounded-2xl text-xs space-y-2">
-            <div className="flex justify-between">
-              <span className="text-navy-500 font-bold">Start Location:</span>
-              <span className="font-mono font-bold text-navy-900">12.9716, 77.5946 (Base)</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-navy-500 font-bold">Stops Selected:</span>
-              <span className="font-bold text-navy-900">{selectedStops.length} order(s)</span>
-            </div>
-          </div>
-
-          <button
-            onClick={handleOptimizeRoute}
-            disabled={optimizing || selectedStops.length === 0}
-            className="w-full flex items-center justify-center space-x-1.5 py-3 px-4 bg-navy-900 hover:bg-navy-850 text-white rounded-2xl text-sm font-bold shadow-md disabled:opacity-50 transition-colors"
-          >
-            {optimizing ? (
-              <Loader2 className="h-4 w-4 animate-spin text-gold-500" />
+            {queue.length === 0 ? (
+              <div className="text-center py-20 text-theme-muted">
+                <p className="text-sm">No pending orders in the queue.</p>
+              </div>
             ) : (
-              <>
-                <Navigation className="h-4 w-4 text-gold-500" />
-                <span>Optimize Stops</span>
-              </>
-            )}
-          </button>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm divide-y divide-theme">
+                  <thead>
+                    <tr className="text-theme-muted text-xs font-bold uppercase tracking-wider">
+                      <th className="pb-3.5 pl-2">Select</th>
+                      <th className="pb-3.5">Order ID</th>
+                      <th className="pb-3.5">Address</th>
+                      <th className="pb-3.5 text-center">Score</th>
+                      <th className="pb-3.5 text-right">Amount</th>
+                      <th className="pb-3.5 pl-4">Update Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-theme font-sans">
+                    {queue.map(({ order, priority }) => {
+                      const rs = rowStatus[order._id] || {};
+                      return (
+                        <tr key={order._id} className="hover:bg-theme-elevated/40 transition-colors">
+                          <td className="py-3.5 pl-2">
+                            <input
+                              type="checkbox"
+                              checked={selectedStops.includes(order._id)}
+                              onChange={() => handleToggleStop(order._id)}
+                              className="w-4 h-4 rounded text-theme-accent focus:ring-theme-accent"
+                            />
+                          </td>
+                          <td className="py-3.5 font-mono text-xs font-bold text-theme-primary">
+                            {order._id.substring(order._id.length - 8)}
+                          </td>
+                          <td className="py-3.5 text-xs text-theme-muted max-w-[160px] truncate" title={order.pickupAddress}>
+                            {order.pickupAddress}
+                          </td>
+                          <td className="py-3.5 text-center">
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold ${
+                              order.isExpress ? 'bg-theme-accent-light text-theme-accent border border-theme-accent' : 'bg-theme-elevated text-theme-muted border border-theme'
+                            }`}>
+                              {priority}
+                            </span>
+                          </td>
+                          <td className="py-3.5 text-right font-bold text-theme-primary pr-2">
+                            ₹{order.totalAmount}
+                          </td>
 
-          {optimizedRoute && (
-            <div className="border-t border-navy-50 pt-4 space-y-3 text-left">
-              <h3 className="text-xs font-bold text-navy-700 uppercase tracking-wider mb-2">Optimized Path Stops</h3>
-              <div className="space-y-3 relative pl-4 border-l border-gold-500/50">
-                {optimizedRoute.map((stop, i) => (
-                  <div key={stop.stopId} className="relative text-xs">
-                    <div className="absolute -left-[20px] top-1 w-2.5 h-2.5 bg-gold-500 rounded-full ring-4 ring-gold-100" />
-                    <div className="font-semibold text-navy-900">
-                      Stop {i + 1}: Order #{stop.stopId.substring(stop.stopId.length - 8)}
-                    </div>
-                    <div className="text-[10px] text-navy-450 mt-0.5">
-                      Distance from prev: {stop.distanceFromPrevious.toFixed(2)} km
-                    </div>
-                  </div>
-                ))}
+                          {/* ── Status Control ── */}
+                          <td className="py-3.5 pl-4">
+                            <div className="flex flex-col gap-1.5 min-w-[160px]">
+                              {/* Current badge */}
+                              <span className={`self-start text-[9px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded border ${STATUS_COLORS[order.currentStatus] || 'bg-gray-100 text-gray-600 border-gray-200'}`}>
+                                {order.currentStatus}
+                              </span>
+                              {/* Dropdown */}
+                              <select
+                                disabled={rs.updating}
+                                value={order.currentStatus}
+                                onChange={(e) => handleStatusChange(order._id, e.target.value)}
+                                className="text-xs bg-theme-elevated border border-theme rounded-xl px-2.5 py-1.5 text-theme-primary font-semibold focus:outline-none focus:border-theme-accent transition-colors disabled:opacity-60"
+                              >
+                                {PARTNER_STATUSES.map((s) => (
+                                  <option key={s} value={s}>{s}</option>
+                                ))}
+                              </select>
+                              {/* Feedback */}
+                              {rs.updating && <Loader2 className="h-3.5 w-3.5 animate-spin text-theme-accent" />}
+                              {!rs.updating && rs.msg && (
+                                <span className={`text-[10px] font-bold flex items-center gap-1 ${rs.type === 'success' ? 'text-green-500' : 'text-red-500'}`}>
+                                  {rs.type === 'success'
+                                    ? <CheckCircle2 className="h-3 w-3" />
+                                    : <AlertCircle className="h-3 w-3" />
+                                  }
+                                  {rs.msg}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* Route Optimizer */}
+          <div className="bg-theme-card p-6 rounded-3xl border border-theme shadow-theme-sm space-y-6">
+            <div className="space-y-1">
+              <h2 className="text-lg font-bold text-theme-primary font-poppins flex items-center space-x-1.5">
+                <Navigation className="h-5 w-5 text-theme-accent" />
+                <span>Route Optimizer</span>
+              </h2>
+              <p className="text-xs text-theme-muted leading-relaxed">
+                Select orders from the heap queue to generate a Dijkstra-optimized delivery path from the hub.
+              </p>
+            </div>
+
+            <div className="border border-theme bg-theme-elevated/40 p-4 rounded-2xl text-xs space-y-2">
+              <div className="flex justify-between">
+                <span className="text-theme-muted font-bold">Start Location:</span>
+                <span className="font-mono font-bold text-theme-primary">12.9716, 77.5946 (Base)</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-theme-muted font-bold">Stops Selected:</span>
+                <span className="font-bold text-theme-primary">{selectedStops.length} order(s)</span>
               </div>
             </div>
-          )}
+
+            <button
+              onClick={handleOptimizeRoute}
+              disabled={optimizing || selectedStops.length === 0}
+              className="w-full flex items-center justify-center space-x-1.5 py-3 px-4 bg-theme-accent text-[var(--accent-text)] rounded-2xl text-sm font-bold shadow-theme-accent disabled:opacity-50 transition-colors theme-btn-hover"
+            >
+              {optimizing ? (
+                <Loader2 className="h-4 w-4 animate-spin text-[var(--accent-text)]" />
+              ) : (
+                <>
+                  <Navigation className="h-4 w-4" />
+                  <span>Optimize Stops</span>
+                </>
+              )}
+            </button>
+
+            {optimizedRoute && (
+              <div className="border-t border-theme pt-4 space-y-3 text-left">
+                <h3 className="text-xs font-bold text-theme-primary uppercase tracking-wider mb-2">Optimized Path Stops</h3>
+                <div className="space-y-3 relative pl-4 border-l border-theme-accent">
+                  {optimizedRoute.map((stop, i) => (
+                    <div key={stop.stopId} className="relative text-xs">
+                      <div className="absolute -left-[20px] top-1 w-2.5 h-2.5 bg-theme-accent rounded-full ring-4 ring-theme-accent-light" />
+                      <div className="font-semibold text-theme-primary">
+                        Stop {i + 1}: Order #{stop.stopId.substring(stop.stopId.length - 8)}
+                      </div>
+                      <div className="text-[10px] text-theme-muted mt-0.5">
+                        Distance from prev: {stop.distanceFromPrevious.toFixed(2)} km
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };

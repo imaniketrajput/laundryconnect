@@ -7,6 +7,23 @@ export default {
   theme: {
     extend: {
       colors: {
+        theme: {
+          bg: 'var(--bg-primary)',
+          secondary: 'var(--bg-secondary)',
+          surface: 'var(--surface)',
+          card: 'var(--surface-card)',
+          elevated: 'var(--surface-elevated)',
+          hover: 'var(--surface-hover)',
+          primary: 'var(--text-primary)',
+          muted: 'var(--text-muted)',
+          subtle: 'var(--text-subtle)',
+          accent: 'var(--accent)',
+          'accent-hover': 'var(--accent-hover)',
+          'accent-light': 'var(--accent-light)',
+          border: 'var(--border)',
+          'border-light': 'var(--border-light)',
+          'border-accent': 'var(--border-accent)',
+        },
         navy: {
           50: '#f8fafc',
           100: '#f1f5f9',
@@ -33,6 +50,13 @@ export default {
           900: '#78350f',
           950: '#451a03',
         }
+      },
+      boxShadow: {
+        'theme-sm': '0 1px 3px 0 var(--shadow-color)',
+        'theme-md': '0 4px 6px -1px var(--shadow-color), 0 2px 4px -2px var(--shadow-color)',
+        'theme-lg': '0 10px 15px -3px var(--shadow-color), 0 4px 6px -4px var(--shadow-color)',
+        'theme-xl': '0 20px 25px -5px var(--shadow-color), 0 8px 10px -6px var(--shadow-color)',
+        'theme-accent': '0 10px 25px -5px var(--accent-shadow)',
       },
       fontFamily: {
         poppins: ['Poppins', 'sans-serif'],

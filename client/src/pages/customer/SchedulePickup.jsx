@@ -102,27 +102,29 @@ const SchedulePickup = () => {
 
   if (successOrder) {
     return (
-      <div className="min-h-[75vh] flex items-center justify-center bg-navy-50 px-4">
-        <div className="bg-white p-8 max-w-md w-full rounded-3xl border border-navy-100 shadow-2xl text-center space-y-6 animate-fade-in">
-          <div className="mx-auto w-16 h-16 bg-gold-500/10 text-gold-500 rounded-full flex items-center justify-center">
+      <div className="min-h-[75vh] flex items-center justify-center bg-theme-bg px-4 transition-colors duration-200">
+        <div className="bg-theme-card p-8 max-w-md w-full rounded-3xl border border-theme shadow-2xl text-center space-y-6 animate-fade-in">
+          <div className="mx-auto w-16 h-16 bg-theme-accent-light text-theme-accent rounded-full flex items-center justify-center">
             <CheckCircle2 className="h-10 w-10 stroke-[2.5]" />
           </div>
           <div className="space-y-2">
-            <h2 className="text-2xl font-bold text-navy-900 font-poppins">Order Placed Successfully!</h2>
-            <p className="text-sm text-navy-500">Your order has been queued. Redirecting to your dashboard...</p>
+            <h2 className="text-2xl font-bold text-theme-primary font-poppins">Order Placed Successfully!</h2>
+            <p className="text-sm text-theme-muted">Your order has been queued. Redirecting to your dashboard...</p>
           </div>
-          <div className="bg-navy-50 p-4 rounded-2xl text-left border border-navy-100 space-y-2">
-            <div className="flex justify-between text-xs text-navy-500">
+          <div className="bg-theme-elevated p-4 rounded-2xl text-left border border-theme space-y-2">
+            <div className="flex justify-between text-xs text-theme-muted">
               <span>Order ID:</span>
-              <span className="font-mono font-bold text-navy-900">{successOrder._id}</span>
+              <span className="font-mono font-bold text-theme-primary">{successOrder._id}</span>
             </div>
-            <div className="flex justify-between text-xs text-navy-500">
+            <div className="flex justify-between text-xs text-theme-muted">
               <span>Status:</span>
-              <span className="bg-gold-100 text-gold-700 px-2 py-0.5 rounded font-bold uppercase text-[9px]">{successOrder.currentStatus}</span>
+              <span className="bg-theme-accent-light text-theme-accent px-2 py-0.5 rounded font-bold uppercase text-[9px] border border-theme-accent">
+                {successOrder.currentStatus}
+              </span>
             </div>
-            <div className="flex justify-between text-xs text-navy-500">
+            <div className="flex justify-between text-xs text-theme-muted">
               <span>Total Amount:</span>
-              <span className="font-extrabold text-navy-900">₹{successOrder.totalAmount}</span>
+              <span className="font-extrabold text-theme-primary">₹{successOrder.totalAmount}</span>
             </div>
           </div>
         </div>
@@ -131,57 +133,59 @@ const SchedulePickup = () => {
   }
 
   return (
-    <div className="min-h-screen bg-navy-50 py-10 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto">
-      <div className="mb-8 flex items-center space-x-2 text-xs font-bold text-navy-500">
-        <Link to="/services" className="hover:text-navy-950 transition-colors">Services</Link>
+    <div className="min-h-screen bg-theme-bg text-theme-primary py-10 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto transition-colors duration-200">
+      <div className="mb-8 flex items-center space-x-2 text-xs font-bold text-theme-muted">
+        <Link to="/services" className="hover:text-theme-primary transition-colors">Services</Link>
         <ChevronRight className="h-3 w-3" />
-        <span className="text-gold-600">Checkout</span>
+        <span className="text-theme-accent">Checkout</span>
       </div>
 
-      <h1 className="text-3xl font-extrabold text-navy-900 font-poppins mb-6">Schedule Your <span className="text-gold-600">Pickup</span></h1>
+      <h1 className="text-3xl font-extrabold text-theme-primary font-poppins mb-6">Schedule Your <span className="text-theme-accent">Pickup</span></h1>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Left column: Cart details and scheduling form */}
         <form onSubmit={handleSubmit} className="lg:col-span-2 space-y-6">
           {error && (
-            <div className="flex items-center space-x-2 bg-red-50 border border-red-200 text-red-700 p-4 rounded-2xl text-sm">
-              <AlertTriangle className="h-5 w-5 text-red-500 flex-shrink-0" />
+            <div className="flex items-center space-x-2 bg-red-500/10 border border-red-500/30 text-red-500 p-4 rounded-2xl text-sm">
+              <AlertTriangle className="h-5 w-5 flex-shrink-0" />
               <span>{error}</span>
             </div>
           )}
 
           {/* Selected services card */}
-          <div className="bg-white p-6 rounded-3xl border border-navy-100 shadow-sm space-y-4">
-            <h2 className="text-lg font-bold text-navy-900 font-poppins">1. Review Selected Items</h2>
+          <div className="bg-theme-card p-6 rounded-3xl border border-theme shadow-theme-sm space-y-4">
+            <h2 className="text-lg font-bold text-theme-primary font-poppins">1. Review Selected Items</h2>
             {cartItems.length === 0 ? (
               <div className="text-center py-8">
-                <p className="text-sm text-navy-500 mb-4">No items selected yet.</p>
-                <Link to="/services" className="px-5 py-2.5 bg-navy-900 text-white rounded-xl text-xs font-bold hover:bg-navy-850">
+                <p className="text-sm text-theme-muted mb-4">No items selected yet.</p>
+                <Link to="/services" className="px-5 py-2.5 bg-theme-accent text-[var(--accent-text)] rounded-xl text-xs font-bold theme-btn-hover">
                   Select Services
                 </Link>
               </div>
             ) : (
-              <div className="divide-y divide-navy-50">
+              <div className="divide-y divide-theme">
                 {cartItems.map((item) => (
                   <div key={item.service._id} className="flex justify-between items-center py-3.5 first:pt-0 last:pb-0">
                     <div className="space-y-1 pr-4">
-                      <h4 className="font-semibold text-sm text-navy-900">{item.service.name}</h4>
-                      <p className="text-xs text-navy-400">₹{item.service.pricePerUnit} / {item.service.unit}</p>
+                      <h4 className="font-semibold text-sm text-theme-primary">{item.service.name}</h4>
+                      <p className="text-xs text-theme-muted">₹{item.service.pricePerUnit} / {item.service.unit}</p>
                     </div>
                     <div className="flex items-center space-x-4">
-                      <div className="flex items-center bg-navy-50 border border-navy-200 rounded-lg p-1">
+                      <div className="flex items-center bg-theme-elevated border border-theme rounded-lg p-1">
                         <button
                           type="button"
                           onClick={() => handleQtyChange(item.service._id, -1)}
-                          className="p-1 hover:bg-navy-250 rounded transition-colors text-navy-600"
+                          className="p-1 hover:bg-theme-surface rounded transition-colors text-theme-muted hover:text-theme-primary"
+                          aria-label={`Decrease quantity of ${item.service.name}`}
                         >
                           <Minus className="h-3 w-3" />
                         </button>
-                        <span className="px-3 text-xs font-bold text-navy-950">{item.quantity}</span>
+                        <span className="px-3 text-xs font-bold text-theme-primary">{item.quantity}</span>
                         <button
                           type="button"
                           onClick={() => handleQtyChange(item.service._id, 1)}
-                          className="p-1 hover:bg-navy-250 rounded transition-colors text-navy-600"
+                          className="p-1 hover:bg-theme-surface rounded transition-colors text-theme-muted hover:text-theme-primary"
+                          aria-label={`Increase quantity of ${item.service.name}`}
                         >
                           <Plus className="h-3 w-3" />
                         </button>
@@ -189,8 +193,9 @@ const SchedulePickup = () => {
                       <button
                         type="button"
                         onClick={() => handleRemove(item.service._id)}
-                        className="text-navy-400 hover:text-red-600 p-1 transition-colors"
+                        className="text-theme-muted hover:text-red-500 p-1 transition-colors"
                         title="Remove item"
+                        aria-label={`Remove ${item.service.name}`}
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
@@ -202,32 +207,32 @@ const SchedulePickup = () => {
           </div>
 
           {/* Logistics card */}
-          <div className="bg-white p-6 rounded-3xl border border-navy-100 shadow-sm space-y-5">
-            <h2 className="text-lg font-bold text-navy-900 font-poppins">2. Pickup Details</h2>
+          <div className="bg-theme-card p-6 rounded-3xl border border-theme shadow-theme-sm space-y-5">
+            <h2 className="text-lg font-bold text-theme-primary font-poppins">2. Pickup Details</h2>
             
             <div className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-navy-700 uppercase tracking-wider mb-1.5">Pickup Address</label>
+                <label className="block text-xs font-bold text-theme-primary uppercase tracking-wider mb-1.5">Pickup Address</label>
                 <div className="relative">
                   <div className="absolute top-3 left-3 flex items-start pointer-events-none">
-                    <MapPin className="h-5 w-5 text-navy-400" />
+                    <MapPin className="h-5 w-5 text-theme-muted" />
                   </div>
                   <textarea
                     required
                     rows="3"
                     value={pickupAddress}
                     onChange={(e) => setPickupAddress(e.target.value)}
-                    className="block w-full pl-10 pr-4 py-2.5 bg-navy-50/50 border border-navy-200 rounded-2xl text-navy-900 placeholder-navy-450 focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-transparent text-sm"
+                    className="block w-full pl-10 pr-4 py-2.5 bg-theme-elevated border border-theme rounded-2xl text-theme-primary placeholder-theme-muted focus:outline-none focus:ring-2 focus:ring-theme-accent text-sm"
                     placeholder="Enter full address for pickup and delivery"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-navy-700 uppercase tracking-wider mb-1.5">Pickup Date</label>
+                <label className="block text-xs font-bold text-theme-primary uppercase tracking-wider mb-1.5">Pickup Date</label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <CalendarIcon className="h-5 w-5 text-navy-400" />
+                    <CalendarIcon className="h-5 w-5 text-theme-muted" />
                   </div>
                   <input
                     type="date"
@@ -235,7 +240,7 @@ const SchedulePickup = () => {
                     min={new Date().toISOString().split('T')[0]}
                     value={pickupDate}
                     onChange={(e) => setPickupDate(e.target.value)}
-                    className="block w-full pl-10 pr-4 py-2.5 bg-navy-50/50 border border-navy-200 rounded-2xl text-navy-900 focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-transparent text-sm"
+                    className="block w-full pl-10 pr-4 py-2.5 bg-theme-elevated border border-theme rounded-2xl text-theme-primary focus:outline-none focus:ring-2 focus:ring-theme-accent text-sm"
                   />
                 </div>
               </div>
@@ -245,22 +250,22 @@ const SchedulePickup = () => {
 
         {/* Right column: Cart total summary */}
         <div className="space-y-6">
-          <div className="bg-white p-6 rounded-3xl border border-navy-100 shadow-sm space-y-5">
-            <h3 className="text-lg font-bold text-navy-900 font-poppins border-b border-navy-50 pb-3">Price Summary</h3>
+          <div className="bg-theme-card p-6 rounded-3xl border border-theme shadow-theme-sm space-y-5">
+            <h3 className="text-lg font-bold text-theme-primary font-poppins border-b border-theme pb-3">Price Summary</h3>
             
-            <div className="space-y-3 text-sm text-navy-600">
+            <div className="space-y-3 text-sm text-theme-muted">
               <div className="flex justify-between">
                 <span>Items Subtotal:</span>
-                <span className="font-bold text-navy-950">₹{subtotal}</span>
+                <span className="font-bold text-theme-primary">₹{subtotal}</span>
               </div>
               <div className="flex justify-between">
                 <span>Delivery Charge:</span>
-                <span>{deliveryFee === 0 ? <span className="text-green-600 font-bold">FREE</span> : `₹${deliveryFee}`}</span>
+                <span>{deliveryFee === 0 ? <span className="text-green-500 font-bold">FREE</span> : `₹${deliveryFee}`}</span>
               </div>
               {isExpress && (
-                <div className="flex justify-between text-gold-600 font-semibold bg-gold-50 p-2 rounded-xl border border-gold-100">
+                <div className="flex justify-between text-theme-accent font-semibold bg-theme-accent-light p-2 rounded-xl border border-theme-accent">
                   <span className="flex items-center space-x-1">
-                    <Sparkles className="h-4 w-4 text-gold-500" />
+                    <Sparkles className="h-4 w-4" />
                     <span>Express Fee:</span>
                   </span>
                   <span>+₹150</span>
@@ -269,38 +274,38 @@ const SchedulePickup = () => {
             </div>
 
             {/* Express Delivery Box */}
-            <div className="bg-navy-50 p-4 rounded-2xl border border-navy-150 space-y-2">
+            <div className="bg-theme-elevated p-4 rounded-2xl border border-theme space-y-2">
               <div className="flex items-center justify-between">
-                <span className="flex items-center space-x-1.5 text-navy-850 font-bold text-sm">
-                  <Truck className="h-4 w-4 text-gold-500" />
+                <span className="flex items-center space-x-1.5 text-theme-primary font-bold text-sm">
+                  <Truck className="h-4 w-4 text-theme-accent" />
                   <span>Express Delivery</span>
                 </span>
                 <input
                   type="checkbox"
                   checked={isExpress}
                   onChange={(e) => setIsExpress(e.target.checked)}
-                  className="w-4 h-4 text-gold-500 border-navy-300 rounded focus:ring-gold-500 focus:ring-2"
+                  className="w-4 h-4 text-theme-accent border-theme rounded focus:ring-theme-accent focus:ring-2"
                 />
               </div>
-              <p className="text-[11px] text-navy-500 leading-normal">
+              <p className="text-[11px] text-theme-muted leading-normal">
                 Deliver within 24 hours. Boosts your heap-based processing priority score.
               </p>
             </div>
 
-            <div className="border-t border-navy-50 pt-4 flex justify-between items-end">
+            <div className="border-t border-theme pt-4 flex justify-between items-end">
               <div>
-                <span className="text-xs text-navy-450 uppercase font-bold">Total Payable</span>
-                <p className="text-3xl font-black text-navy-950">₹{grandTotal}</p>
+                <span className="text-xs text-theme-muted uppercase font-bold">Total Payable</span>
+                <p className="text-3xl font-black text-theme-primary">₹{grandTotal}</p>
               </div>
             </div>
 
             <button
               onClick={handleSubmit}
               disabled={loading || cartItems.length === 0}
-              className="w-full flex justify-center items-center py-3.5 px-4 border border-transparent rounded-2xl shadow-md text-sm font-bold text-white bg-navy-900 hover:bg-navy-850 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+              className="w-full flex justify-center items-center py-3.5 px-4 rounded-2xl shadow-theme-accent text-sm font-bold text-[var(--accent-text)] bg-theme-accent hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 theme-btn-hover"
             >
               {loading ? (
-                <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
+                <div className="animate-spin rounded-full h-5 w-5 border-2 border-current border-t-transparent"></div>
               ) : (
                 <span>Confirm Order (₹{grandTotal})</span>
               )}
