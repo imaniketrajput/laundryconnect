@@ -29,7 +29,7 @@ LaundryConnect digitizes the entire laundry lifecycle into a streamlined web pla
 | **Database** | MongoDB Atlas / Mongoose | MongoDB 7.x / Mongoose 9 | Flexible document-oriented JSON schema, geospatial query capabilities, aggregation pipelines |
 | **Real-Time Transport** | Socket.io | 4.8 | Bidirectional WebSocket communication with room-based pub/sub for live order tracking |
 | **Payment Gateway** | Razorpay SDK | 2.9 | PCI-DSS compliant checkout with server-side HMAC-SHA256 signature verification |
-| **Transactional Email** | Resend SDK | 6.28 | Modern HTTP REST email API with fail-safe, fire-and-forget asynchronous dispatch |
+| **Transactional Email** | Nodemailer (Gmail SMTP) | 10.x | Direct SMTP transport for unrestricted recipient inbox delivery, attachments support, zero domain cost |
 | **Security & Auth** | JWT (`jsonwebtoken`), `bcryptjs`, `crypto` | JWT 9, Bcrypt 3 | Stateless token authentication, salted password hashing, constant-time signature comparisons |
 
 ---
@@ -55,8 +55,8 @@ graph TD
         Orders --> Mongo[("MongoDB Atlas<br/>(Users, Orders, Services, Slots, Partners)")]
         DSA <--> Mongo
         Payments --> Razorpay["Razorpay API Gateway<br/>(Orders API & HMAC Verification)"]
-        Orders -.->|Async Fire-and-Forget| Resend["Resend Email Service<br/>(Transactional Templates)"]
-        Payments -.->|Async Fire-and-Forget| Resend
+        Orders -.->|Async Fire-and-Forget| Nodemailer["Nodemailer (Gmail SMTP)<br/>(Transactional Templates)"]
+        Payments -.->|Async Fire-and-Forget| Nodemailer
     end
 ```
 
@@ -273,7 +273,7 @@ sequenceDiagram
     participant Backend as Express Server
     participant DB as MongoDB Atlas
     participant Razorpay as Razorpay Gateway
-    participant Resend as Resend Email Service
+    participant Email as Nodemailer (Gmail SMTP)
 
     Customer->>Frontend: Fills schedule & clicks "Confirm Order (₹239)"
     Frontend->>Backend: POST /api/orders (Draft creation)
@@ -292,7 +292,7 @@ sequenceDiagram
     Backend->>Backend: HMAC-SHA256 signature verification (crypto.timingSafeEqual)
     Backend->>DB: Activate Order: paymentStatus="Paid", currentStatus="Placed", orderVisibility="Visible", paidAt=now
     Backend->>Backend: Generate PDF invoice buffer (pdfkit)
-    Backend-.->Resend: Async Fire-and-Forget Email with PDF Attachment
+    Backend-.->Email: Async Fire-and-Forget Email with PDF Attachment
     Backend-->>Frontend: HTTP 200 { message: "Payment verified successfully", order, invoice }
     Frontend-->>Customer: Renders "Order Placed Successfully" screen with full invoice, PDF download & print buttons
 ```
@@ -312,23 +312,27 @@ To guarantee that invoice data never drifts across different presentation surfac
 - **Surfaces Served by Single Source**:
   1. *In-Browser Views*: [`InvoiceModal.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/components/InvoiceModal.jsx) and the post-confirmation screen on [`SchedulePickup.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/pages/customer/SchedulePickup.jsx).
   2. *Streamed PDF Download*: `GET /api/payments/:orderId/invoice/pdf` (streams the generated buffer with `Content-Type: application/pdf`).
-  3. *Transactional Email Attachment*: Attached directly to Resend's payment receipt email as `Invoice-INV-XXXXXXXX.pdf`.
+  3. *Transactional Email Attachment*: Attached directly to Nodemailer's payment receipt email as `Invoice-INV-XXXXXXXX.pdf`.
 - **Production Guard on Mock Pay**: `payForOrder` (simulate test payment) checks `if (process.env.NODE_ENV === "production") return res.status(403)` to prevent production bypass.
 
 ---
 
-## 8. Email Notifications (Resend)
+## 8. Email Notifications (Nodemailer / Gmail SMTP)
 
 All transactional emails in [`server/utils/emailService.js`](file:///c:/Users/Pratik/laundryconnect/server/utils/emailService.js) execute as asynchronous, fire-and-forget tasks wrapped in `.catch()` handlers so email delivery latency or network failures never delay or crash the primary HTTP API response.
+
+The platform uses **Nodemailer** with **Gmail SMTP** (`service: "gmail"`) authenticated via Google Account App Passwords. Unlike free-tier API services (such as Resend's default sandbox which only delivers to the account owner), Gmail SMTP delivers to **any customer email address** with zero custom domain or DNS setup required.
 
 | Email Type | Trigger Point | Recipient | Key Information Included |
 |---|---|---|---|
 | **Welcome Email** | `authController.register` | New Customer | Welcome message, doorstep convenience, 24-hr express overview, CTA to book |
 | **Order Confirmation** | `orderController.createOrder` | Customer | Order ID, items list, subtotal, delivery charge, express fee, total amount, pickup date/address |
-| **Payment Receipt** | `paymentController.verifyPayment` | Customer | Verified badge, payment ID, payment gateway, date/time paid, complete fee breakdown |
+| **Payment Receipt** | `paymentController.verifyPayment` | Customer | Verified badge, payment ID, payment gateway, date/time paid, complete fee breakdown, and **attached PDF invoice** |
 | **Status Update** | `orderController.updateOrderStatus` | Customer | Triggered **only** on `OutForDelivery` (driver on way) and `Delivered` (delivered safely) |
 
-**Fail-Safe Simulation**: When `RESEND_API_KEY` is not configured or set to placeholder (`re_placeholder`), the service logs simulated output to the server console without throwing errors.
+**Fail-Safe Simulation**: When `GMAIL_USER` or `GMAIL_APP_PASSWORD` are not configured or set to placeholders, the service safely logs simulated output and attachment counts to the server console without throwing errors.
+
+**Delivery Constraints**: Standard Gmail accounts have an outbound sending limit of approximately 500 emails per 24-hour period. This is well within the operating requirements of academic demonstration and staging environments. For high-volume enterprise production, swapping the transporter to Amazon SES, SendGrid, or Google Workspace SMTP relay requires only changing the transporter config in `emailService.js`.
 
 ---
 
@@ -361,8 +365,8 @@ All transactional emails in [`server/utils/emailService.js`](file:///c:/Users/Pr
 | `JWT_SECRET` | `server/.env` | **Required** | Cryptographic secret for signing and verifying JWT tokens. |
 | `RAZORPAY_KEY_ID` | `server/.env` | **Required** | Razorpay Key ID (`rzp_test_...` in test mode or `rzp_live_...`). |
 | `RAZORPAY_KEY_SECRET` | `server/.env` | **Required** | Razorpay Key Secret for orders creation and HMAC verification. |
-| `RESEND_API_KEY` | `server/.env` | Optional | Resend API key (`re_...`) for live transactional emails. |
-| `RESEND_FROM_EMAIL` | `server/.env` | Optional | Verified sender address (Default: `LaundryConnect <onboarding@resend.dev>`). |
+| `GMAIL_USER` | `server/.env` | Optional / Recommended | Gmail address used for authenticating SMTP delivery (e.g. `your_email@gmail.com`). |
+| `GMAIL_APP_PASSWORD` | `server/.env` | Optional / Recommended | 16-character Google Account App Password for SMTP authentication. |
 | `CLIENT_URL` | `server/.env` | Optional | Deployed frontend origin allowed by CORS. |
 | `VITE_API_URL` | `client/.env` | Optional | Overrides backend API base URL (Default: `http://localhost:5000/api` in dev). |
 | `VITE_SOCKET_URL` | `client/.env` | Optional | Overrides Socket.io server connection URL (Default: `http://localhost:5000` in dev). |
@@ -376,7 +380,7 @@ All transactional emails in [`server/utils/emailService.js`](file:///c:/Users/Pr
 - **Build Command**: `cd server && npm install`
 - **Start Command**: `node server/server.js`
 - **Configuration**:
-  - Set all production environment variables (`MONGO_URI`, `JWT_SECRET`, `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RESEND_API_KEY`, `NODE_ENV=production`).
+  - Set all production environment variables (`MONGO_URI`, `JWT_SECRET`, `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `GMAIL_USER`, `GMAIL_APP_PASSWORD`, `NODE_ENV=production`).
   - Render automatically assigns an HTTPS URL (e.g., `https://laundryconnect-api.onrender.com`).
 
 ### 11.2 Frontend Deployment (Static Site / Vercel / Render Static)
@@ -389,7 +393,7 @@ All transactional emails in [`server/utils/emailService.js`](file:///c:/Users/Pr
 ## 12. Known Limitations & Future Work
 
 1. **Simulated Geocoding Coordinates**: Delivery stop coordinates in [`PartnerDashboard.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/pages/partner/PartnerDashboard.jsx) currently sample an array of coordinates for algorithmic demonstration. Production enhancement will integrate the Google Maps Platform Geocoding API to resolve customer text addresses to exact GPS coordinates.
-2. **Resend Free-Tier Sender Restriction**: Without a verified custom DNS domain, Resend requires sender address `onboarding@resend.dev` and only delivers to the account owner's email. Linking a custom domain unlocks unrestricted recipient delivery.
+2. **Gmail SMTP Sending Limits**: Standard Gmail accounts enforce an outbound sending quota of approximately 500 emails per 24 hours. For high-volume enterprise operations, switching to an enterprise SMTP relay (e.g. AWS SES, SendGrid) is recommended.
 3. **SMS Gateway Integration**: Complementing email receipts with Twilio / Fast2SMS text notifications when drivers depart for delivery.
 4. **Abandoned Draft Orders Cleanup**: When customers initiate checkout on `SchedulePickup` but dismiss the Razorpay modal or fail to complete payment, the order record persists in `currentStatus: "Draft"`, `paymentStatus: "Pending"`, and `orderVisibility: "Draft"`. While these orders are strictly excluded from the priority queue and all partner-facing dispatch dashboards, they accumulate in MongoDB. A planned enhancement is a background cron worker or a MongoDB TTL index on unverified draft orders older than 48 hours to automatically purge abandoned records.
 
@@ -398,6 +402,11 @@ All transactional emails in [`server/utils/emailService.js`](file:///c:/Users/Pr
 ## 13. Changelog
 
 ### 2026-09-24
+- **TRANSACTIONAL EMAIL TRANSPORT MIGRATION (Nodemailer / Gmail SMTP)**:
+  - *Context & Problem*: Resend's default sandbox sender (`onboarding@resend.dev`) restricted delivery strictly to the account owner's email address. Sending emails to arbitrary real customer addresses was blocked without purchasing a custom verified domain.
+  - *Solution Applied*: Replaced `resend` package with `nodemailer` using Gmail SMTP (`service: "gmail"`). Enabled unrestricted email delivery to ANY customer address using standard Google App Passwords.
+  - *Attachments & Fail-Safe*: Preserved 100% of existing HTML email templates, identical function signatures, and PDF invoice buffer attachment support in `sendPaymentReceiptEmail`. If credentials are omitted or placeholders, the transport safely logs simulated output to the console without interrupting operations.
+  - *Files Touched*: [`package.json`](file:///c:/Users/Pratik/laundryconnect/server/package.json), [`emailService.js`](file:///c:/Users/Pratik/laundryconnect/server/utils/emailService.js), [`invoiceGenerator.js`](file:///c:/Users/Pratik/laundryconnect/server/utils/invoiceGenerator.js), [`.env`](file:///c:/Users/Pratik/laundryconnect/server/.env), [`.env.example`](file:///c:/Users/Pratik/laundryconnect/server/.env.example).
 - **PAYMENT-FIRST ORDER FLOW RESTRUCTURING**:
   - *Previous Flow*: `Confirm Order` immediately set `currentStatus="Placed"` and showed a success screen regardless of payment. Unpaid orders accumulated in the system and were accessible before payment.
   - *New Payment-First Flow*: `createOrder` initializes orders with `currentStatus: "Draft"`, `orderVisibility: "Draft"`, and `paymentStatus: "Pending"`. The frontend auto-triggers the Razorpay checkout modal immediately upon clicking "Confirm Order".
@@ -410,9 +419,6 @@ All transactional emails in [`server/utils/emailService.js`](file:///c:/Users/Pr
   - *Single Source of Truth*: `buildInvoiceData` unifies invoice structures across JSON APIs, PDF downloads, and email attachments, ensuring byte-for-byte matching numbers, line items, transaction IDs, and tax notes.
   - *Endpoints*: Added `GET /api/payments/:orderId/invoice/pdf` with strict IDOR ownership checks to stream generated PDFs directly to client downloaders.
   - *UI*: Added "Download Invoice (PDF)" and "Print Invoice" buttons to [`SchedulePickup.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/pages/customer/SchedulePickup.jsx) and [`InvoiceModal.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/components/InvoiceModal.jsx).
-- **AUTOMATIC TRANSACTIONAL EMAIL WITH PDF ATTACHMENT (Resend)**:
-  - *Implementation*: Extended [`emailService.js`](file:///c:/Users/Pratik/laundryconnect/server/utils/emailService.js) (`safeSendEmail` and `sendPaymentReceiptEmail`) to dynamically attach generated PDF buffers as `Invoice-INV-XXXXXXXX.pdf` via Resend's attachments API.
-  - *Fail-Safe*: Wrapped asynchronously in fire-and-forget try/catch blocks so email or PDF attachment failures never block or fail the customer payment verification response.
 
 ### 2026-09-23
 - **CRITICAL BUG FIX — Order Pricing Desync (Part 1)**:

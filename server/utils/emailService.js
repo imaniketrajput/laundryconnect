@@ -1,14 +1,30 @@
-const { Resend } = require("resend");
+const nodemailer = require("nodemailer");
 const User = require("../models/User");
 const Order = require("../models/Order");
 
-// ─── Resend Client Initializer ───────────────────────────────────────────────
-const getResendClient = () => {
-  const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey || apiKey === "re_placeholder" || apiKey.trim() === "") {
+// ─── Nodemailer Transporter Initializer ──────────────────────────────────────
+const getMailTransporter = () => {
+  const user = process.env.GMAIL_USER;
+  const pass = process.env.GMAIL_APP_PASSWORD;
+
+  if (
+    !user ||
+    !pass ||
+    user === "your_gmail_address@gmail.com" ||
+    pass === "xxxx xxxx xxxx xxxx" ||
+    user.trim() === "" ||
+    pass.trim() === ""
+  ) {
     return null;
   }
-  return new Resend(apiKey);
+
+  return nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: user.trim(),
+      pass: pass.replace(/\s+/g, ""), // Support both spaced "xxxx xxxx xxxx xxxx" and unspaced Google app passwords
+    },
+  });
 };
 
 // ─── Helper: Resolve Customer Info ──────────────────────────────────────────
@@ -138,35 +154,31 @@ const safeSendEmail = async ({ to, subject, html, emailType, attachments }) => {
       return { success: false, reason: "No recipient email" };
     }
 
-    const resend = getResendClient();
-    if (!resend) {
+    const transporter = getMailTransporter();
+    const fromAddress = process.env.GMAIL_USER
+      ? `LaundryConnect <${process.env.GMAIL_USER}>`
+      : "LaundryConnect <support@laundryconnect.com>";
+
+    if (!transporter) {
       const attachInfo = attachments && attachments.length > 0 ? ` with ${attachments.length} attachment(s)` : "";
-      console.log(`[EmailService] RESEND_API_KEY is not configured or placeholder. Simulated ${emailType}${attachInfo} to <${to}>: "${subject}"`);
+      console.log(`[EmailService] GMAIL_USER / GMAIL_APP_PASSWORD is not configured or placeholder. Simulated ${emailType}${attachInfo} to <${to}>: "${subject}"`);
       return { success: true, simulated: true };
     }
 
-    const fromAddress = process.env.RESEND_FROM_EMAIL || "LaundryConnect <onboarding@resend.dev>";
-
-    const sendPayload = {
+    const mailOptions = {
       from: fromAddress,
-      to: [to],
+      to,
       subject,
       html,
     };
 
     if (attachments && Array.isArray(attachments) && attachments.length > 0) {
-      sendPayload.attachments = attachments;
+      mailOptions.attachments = attachments;
     }
 
-    const { data, error } = await resend.emails.send(sendPayload);
-
-    if (error) {
-      console.error(`[EmailService] Resend error for ${emailType} to <${to}>:`, error);
-      return { success: false, error };
-    }
-
-    console.log(`[EmailService] Successfully sent ${emailType} to <${to}> (ID: ${data.id})`);
-    return { success: true, data };
+    const info = await transporter.sendMail(mailOptions);
+    console.log(`[EmailService] Successfully sent ${emailType} to <${to}> (MessageId: ${info.messageId})`);
+    return { success: true, info };
   } catch (err) {
     console.error(`[EmailService] Unexpected failure in safeSendEmail (${emailType}):`, err.message);
     return { success: false, error: err.message };

@@ -5,7 +5,7 @@ const PDFDocument = require("pdfkit");
  * This function serves as the SINGLE SOURCE OF TRUTH for:
  * 1. In-browser invoice modal & confirmation screen (JSON API)
  * 2. Generated PDF file download
- * 3. Resend email receipt attachment
+ * 3. Email receipt attachment (Nodemailer Gmail SMTP)
  */
 const buildInvoiceData = (order) => {
   if (!order) {
