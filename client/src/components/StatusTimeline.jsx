@@ -22,11 +22,11 @@ const StatusTimeline = ({ currentStatus, statusHistory = [] }) => {
 
   if (isCancelled) {
     return (
-      <div className="flex items-center space-x-3 bg-red-50 border border-red-200 rounded-2xl p-5 text-red-800">
-        <AlertCircle className="h-6 w-6 text-red-600 flex-shrink-0" />
+      <div className="flex items-center space-x-3 bg-red-500/10 border border-red-500/30 rounded-2xl p-5 text-red-500">
+        <AlertCircle className="h-6 w-6 text-red-500 flex-shrink-0" />
         <div>
           <h4 className="font-bold text-base">Order Cancelled</h4>
-          <p className="text-sm text-red-700 mt-0.5">This order has been cancelled and will not be processed.</p>
+          <p className="text-sm opacity-90 mt-0.5">This order has been cancelled and will not be processed.</p>
         </div>
       </div>
     );
@@ -38,17 +38,16 @@ const StatusTimeline = ({ currentStatus, statusHistory = [] }) => {
       <div className="hidden md:block">
         <div className="flex justify-between items-center relative">
           {/* Progress bar background */}
-          <div className="absolute top-1/2 left-0 right-0 h-1 bg-navy-100 -translate-y-1/2 z-0"></div>
+          <div className="absolute top-1/2 left-0 right-0 h-1 bg-theme-elevated -translate-y-1/2 z-0"></div>
           {/* Progress bar filled */}
           <div 
-            className="absolute top-1/2 left-0 h-1 bg-gold-500 -translate-y-1/2 z-0 transition-all duration-500"
+            className="absolute top-1/2 left-0 h-1 bg-theme-accent -translate-y-1/2 z-0 transition-all duration-500"
             style={{ width: `${(Math.max(0, currentIndex) / (STEPS.length - 1)) * 100}%` }}
           ></div>
 
           {STEPS.map((step, idx) => {
             const isCompleted = idx < currentIndex;
             const isCurrent = idx === currentIndex;
-            const isPending = idx > currentIndex;
             const timeStr = getStatusTime(step.status);
 
             return (
@@ -56,10 +55,10 @@ const StatusTimeline = ({ currentStatus, statusHistory = [] }) => {
                 <div 
                   className={`w-10 h-10 rounded-full flex items-center justify-center border-4 transition-all duration-300 ${
                     isCompleted 
-                      ? 'bg-gold-500 border-gold-500 text-white shadow-lg shadow-gold-500/20' 
+                      ? 'bg-theme-accent border-theme-accent text-[var(--accent-text)] shadow-theme-accent' 
                       : isCurrent 
-                        ? 'bg-white border-navy-900 text-navy-900 scale-110 shadow-lg ring-4 ring-navy-50' 
-                        : 'bg-white border-navy-200 text-navy-300'
+                        ? 'bg-theme-card border-theme-accent text-theme-accent scale-110 shadow-lg ring-4 ring-theme-accent-light' 
+                        : 'bg-theme-card border-theme text-theme-muted'
                   }`}
                 >
                   {isCompleted ? (
@@ -69,11 +68,11 @@ const StatusTimeline = ({ currentStatus, statusHistory = [] }) => {
                   )}
                 </div>
                 <div className="text-center mt-3">
-                  <p className={`text-xs font-bold font-poppins ${isCurrent ? 'text-navy-950 scale-105' : 'text-navy-700'}`}>
+                  <p className={`text-xs font-bold font-poppins ${isCurrent ? 'text-theme-primary scale-105' : 'text-theme-muted'}`}>
                     {step.label}
                   </p>
                   {timeStr && (
-                    <p className="text-[10px] font-bold text-gold-600 mt-0.5">{timeStr}</p>
+                    <p className="text-[10px] font-bold text-theme-accent mt-0.5">{timeStr}</p>
                   )}
                 </div>
               </div>
@@ -84,7 +83,7 @@ const StatusTimeline = ({ currentStatus, statusHistory = [] }) => {
 
       {/* Mobile Vertical Stepper (hidden on desktop) */}
       <div className="block md:hidden">
-        <div className="relative pl-6 border-l-2 border-navy-100 ml-3 space-y-8">
+        <div className="relative pl-6 border-l-2 border-theme ml-3 space-y-8">
           {STEPS.map((step, idx) => {
             const isCompleted = idx < currentIndex;
             const isCurrent = idx === currentIndex;
@@ -96,10 +95,10 @@ const StatusTimeline = ({ currentStatus, statusHistory = [] }) => {
                 <div 
                   className={`absolute -left-[35px] top-0 w-7 h-7 rounded-full flex items-center justify-center border-2 transition-colors ${
                     isCompleted 
-                      ? 'bg-gold-500 border-gold-500 text-white' 
+                      ? 'bg-theme-accent border-theme-accent text-[var(--accent-text)]' 
                       : isCurrent 
-                        ? 'bg-white border-navy-900 text-navy-900 scale-105 shadow-md shadow-navy-900/10' 
-                        : 'bg-white border-navy-200 text-navy-300'
+                        ? 'bg-theme-card border-theme-accent text-theme-accent scale-105 shadow-md ring-2 ring-theme-accent-light' 
+                        : 'bg-theme-card border-theme text-theme-muted'
                   }`}
                 >
                   {isCompleted ? (
@@ -109,12 +108,12 @@ const StatusTimeline = ({ currentStatus, statusHistory = [] }) => {
                   )}
                 </div>
                 <div>
-                  <h4 className={`text-sm font-bold font-poppins ${isCurrent ? 'text-navy-950' : 'text-navy-700'}`}>
+                  <h4 className={`text-sm font-bold font-poppins ${isCurrent ? 'text-theme-primary' : 'text-theme-muted'}`}>
                     {step.label}
                   </h4>
-                  <p className="text-xs text-navy-500 mt-0.5">{step.desc}</p>
+                  <p className="text-xs text-theme-muted mt-0.5">{step.desc}</p>
                   {timeStr && (
-                    <p className="text-[10px] font-bold text-gold-600 mt-1">{timeStr}</p>
+                    <p className="text-[10px] font-bold text-theme-accent mt-1">{timeStr}</p>
                   )}
                 </div>
               </div>

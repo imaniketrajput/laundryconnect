@@ -25,7 +25,7 @@ const StarRating = ({ value = 0, onChange, readOnly = false, size = 'text-2xl' }
             className={`
               ${size} leading-none transition-transform duration-100
               ${readOnly ? 'cursor-default' : 'cursor-pointer hover:scale-110 active:scale-95 focus:outline-none'}
-              ${filled ? 'text-gold-500' : 'text-navy-200'}
+              ${filled ? 'text-theme-accent' : 'text-theme-muted/40'}
             `}
             aria-label={`${star} star${star !== 1 ? 's' : ''}`}
           >

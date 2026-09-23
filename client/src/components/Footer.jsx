@@ -36,71 +36,71 @@ const Footer = () => {
   ];
 
   return (
-    <footer className="bg-navy-950 text-navy-300 border-t border-navy-900 pt-16 pb-8">
+    <footer className="bg-theme-secondary text-theme-muted border-t border-theme pt-16 pb-8 transition-colors duration-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-12 mb-12">
           {/* Column 1: Branding */}
           <div className="space-y-4">
             <Link to="/" className="flex items-center space-x-2 group">
-              <div className="bg-navy-900 p-2 rounded-xl text-gold-500">
+              <div className="bg-theme-elevated p-2 rounded-xl text-theme-accent border border-theme">
                 <Sparkles className="h-6 w-6" />
               </div>
-              <span className="text-2xl font-bold tracking-tight text-white font-poppins">
-                Laundry<span className="text-gold-500">Connect</span>
+              <span className="text-2xl font-bold tracking-tight text-theme-primary font-poppins">
+                Laundry<span className="text-theme-accent">Connect</span>
               </span>
             </Link>
-            <p className="text-sm text-navy-400 font-sans leading-relaxed">
+            <p className="text-sm text-theme-muted font-sans leading-relaxed">
               Your smart fabric care partner. We collect, clean, and deliver premium laundry and dry cleaning services right to your doorstep. Powered by advanced algorithms for route optimization and priority scheduling.
             </p>
           </div>
 
           {/* Column 2: Quick Links */}
           <div className="space-y-4 md:ml-12">
-            <h3 className="text-white font-bold font-poppins text-lg tracking-wide border-l-4 border-gold-500 pl-3">
+            <h3 className="text-theme-primary font-bold font-poppins text-lg tracking-wide border-l-4 border-theme-accent pl-3">
               Quick Navigation
             </h3>
             <ul className="space-y-2 text-sm">
               <li>
-                <Link to="/" className="hover:text-white transition-colors duration-200">
+                <Link to="/" className="hover:text-theme-accent transition-colors duration-200">
                   Home
                 </Link>
               </li>
               <li>
-                <Link to="/services" className="hover:text-white transition-colors duration-200">
+                <Link to="/services" className="hover:text-theme-accent transition-colors duration-200">
                   Services &amp; Pricing
                 </Link>
               </li>
               <li>
-                <Link to="/track" className="hover:text-white transition-colors duration-200">
+                <Link to="/track" className="hover:text-theme-accent transition-colors duration-200">
                   Track Order
                 </Link>
               </li>
               <li>
-                <a href="#about" className="hover:text-white transition-colors duration-200">
-                  About Us
-                </a>
+                <Link to="/schedule" className="hover:text-theme-accent transition-colors duration-200">
+                  Schedule Pickup
+                </Link>
               </li>
             </ul>
           </div>
 
           {/* Column 3: Contact & Socials */}
           <div className="space-y-4">
-            <h3 className="text-white font-bold font-poppins text-lg tracking-wide border-l-4 border-gold-500 pl-3">
+            <h3 className="text-theme-primary font-bold font-poppins text-lg tracking-wide border-l-4 border-theme-accent pl-3">
               Get in Touch
             </h3>
-            <div className="space-y-3 text-sm text-navy-400">
+            <div className="space-y-3 text-sm text-theme-muted">
               <div className="flex items-center space-x-2">
-                <Mail className="h-4 w-4 text-gold-500" />
-                <a href="mailto:as.thakuraniket@gmail.com" className="hover:text-white transition-colors">
+                <Mail className="h-4 w-4 text-theme-accent" />
+                <a href="mailto:as.thakuraniket@gmail.com" className="hover:text-theme-primary transition-colors">
                   as.thakuraniket@gmail.com
                 </a>
               </div>
               <div className="flex items-center space-x-2">
-                <Phone className="h-4 w-4 text-gold-500" />
+                <Phone className="h-4 w-4 text-theme-accent" />
                 <span>+91 86508 65586</span>
               </div>
               <div className="flex items-center space-x-2">
-                <MapPin className="h-4 w-4 text-gold-500" />
+                <MapPin className="h-4 w-4 text-theme-accent" />
                 <span>48+ Cities, India</span>
               </div>
             </div>
@@ -112,7 +112,7 @@ const Footer = () => {
                   href={social.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="bg-navy-900 hover:bg-gold-500 hover:text-navy-950 p-2.5 rounded-xl transition-all duration-300 text-navy-300 hover:-translate-y-1 shadow-md flex items-center justify-center"
+                  className="bg-theme-elevated hover:bg-theme-accent hover:text-white p-2.5 rounded-xl transition-all duration-300 text-theme-primary border border-theme hover:-translate-y-1 shadow-md flex items-center justify-center theme-btn-hover"
                   title={social.name}
                 >
                   <social.icon className="h-5 w-5" />
@@ -123,17 +123,17 @@ const Footer = () => {
         </div>
 
         {/* Bottom Bar */}
-        <div className="border-t border-navy-900 pt-8 mt-8 flex flex-col sm:flex-row justify-between items-center text-xs text-navy-500">
+        <div className="border-t border-theme pt-8 mt-8 flex flex-col sm:flex-row justify-between items-center text-xs text-theme-muted">
           <p className="mb-2 sm:mb-0">
             &copy; {currentYear} LaundryConnect. All rights reserved.
           </p>
-          <p className="font-medium text-navy-400">
+          <p className="font-medium text-theme-muted">
             Built and designed by{' '}
             <a
               href="https://www.linkedin.com/in/aniket-singh-as/"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-gold-500 hover:text-gold-400 font-bold transition-colors"
+              className="text-theme-accent font-bold transition-colors hover:underline"
             >
               Aniket Singh Rajput
             </a>
