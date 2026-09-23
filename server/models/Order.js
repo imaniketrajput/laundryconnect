@@ -37,8 +37,11 @@ const orderSchema = new mongoose.Schema(
         totalAmount: {type: Number, required: true},
         
         paymentStatus: { type: String, enum: ["Pending", "Paid", "Failed"], default: "Pending" },
-        paymentMethod: { type: String, enum: ["UPI", "Card", "Cash"], default: null },
+        paymentMethod: { type: String, enum: ["UPI", "Card", "Cash", "Razorpay"], default: null },
         paidAt: { type: Date, default: null },
+        razorpayOrderId: { type: String, default: null },
+        razorpayPaymentId: { type: String, default: null },
+        razorpaySignature: { type: String, default: null },
 
         rating: { type: Number, min: 1, max: 5, default: null },
         reviewComment: { type: String, default: null },

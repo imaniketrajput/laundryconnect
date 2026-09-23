@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../../api/axios';
+import { useAuth } from '../../context/AuthContext';
 import StatusTimeline from '../../components/StatusTimeline';
 import StarRating from '../../components/StarRating';
 import InvoiceModal from '../../components/InvoiceModal';
@@ -8,7 +9,7 @@ import { OrderSkeleton } from '../../components/Skeleton';
 import {
   Loader2, ClipboardList, Sparkles, RefreshCw, AlertTriangle,
   X, CreditCard, Banknote, Smartphone, CheckCircle2, AlertCircle,
-  Receipt, Send
+  Receipt, Send, ShieldCheck, Lock
 } from 'lucide-react';
 
 // ─── Shared status badge color map ───────────────────────────────────────────
@@ -22,40 +23,115 @@ export const STATUS_COLORS = {
   Cancelled:       'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/40 dark:text-red-300 dark:border-red-800',
 };
 
-// ─── PayNow Modal ─────────────────────────────────────────────────────────────
+// ─── PayNow Modal (Razorpay Live Integration) ─────────────────────────────────
 const PayNowModal = ({ order, onClose, onSuccess }) => {
-  const [method, setMethod] = useState('UPI');
+  const { user } = useAuth();
   const [submitting, setSubmitting] = useState(false);
+  const [verifying, setVerifying] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
   const overlayRef = useRef(null);
 
   const handleOverlayClick = (e) => {
-    if (e.target === overlayRef.current && !submitting) onClose();
+    if (e.target === overlayRef.current && !submitting && !verifying) onClose();
   };
 
   const handlePay = async () => {
     setError('');
+
+    // Check if Razorpay script is loaded in browser
+    if (typeof window.Razorpay === 'undefined') {
+      setError('Razorpay SDK failed to load. Please verify your connection or reload the page.');
+      return;
+    }
+
     setSubmitting(true);
+
     try {
-      await api.post(`/payments/${order._id}/pay`, { paymentMethod: method });
-      setSuccess(true);
-      setTimeout(() => {
-        onSuccess();
-        onClose();
-      }, 1500);
+      // 1. Create order on backend
+      const res = await api.post(`/payments/${order._id}/razorpay/create-order`);
+      const { orderId, amount, currency, keyId } = res.data;
+
+      if (!keyId) {
+        throw new Error('Razorpay Key ID is not configured on the server.');
+      }
+
+      // 2. Configure Razorpay checkout options
+      const options = {
+        key: keyId,
+        amount: amount,
+        currency: currency || 'INR',
+        name: 'LaundryConnect',
+        description: `Payment for Order #${order._id.slice(-6).toUpperCase()}`,
+        image: '/icon-sparkle.png',
+        order_id: orderId,
+        handler: async function (response) {
+          try {
+            setVerifying(true);
+            await api.post(`/payments/${order._id}/razorpay/verify`, {
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+            });
+            setSuccess(true);
+            setTimeout(() => {
+              onSuccess();
+              onClose();
+            }, 1200);
+          } catch (verifyErr) {
+            setError(verifyErr.response?.data?.message || 'Payment verification failed. Please contact support.');
+            setSubmitting(false);
+          } finally {
+            setVerifying(false);
+          }
+        },
+        prefill: {
+          name: user?.name || '',
+          email: user?.email || '',
+          contact: user?.phone || '',
+        },
+        theme: {
+          color: '#f59e0b',
+        },
+        modal: {
+          ondismiss: function () {
+            setSubmitting(false);
+            setVerifying(false);
+            setError('Payment checkout cancelled. You can retry whenever you are ready.');
+          },
+        },
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.on('payment.failed', function (resp) {
+        setSubmitting(false);
+        setVerifying(false);
+        setError(resp.error?.description || 'Payment failed. Please try again with another card or UPI.');
+      });
+
+      rzp.open();
     } catch (err) {
-      setError(err.response?.data?.message || 'Payment failed. Please try again.');
-    } finally {
+      console.error('Razorpay checkout initiation error:', err);
+      setError(err.response?.data?.message || err.message || 'Failed to initiate payment.');
       setSubmitting(false);
     }
   };
 
-  const METHODS = [
-    { id: 'UPI',  label: 'UPI',  sub: 'Google Pay, PhonePe, Paytm', Icon: Smartphone },
-    { id: 'Card', label: 'Card', sub: 'Debit / Credit Card',          Icon: CreditCard },
-    { id: 'Cash', label: 'Cash', sub: 'Pay on Pickup',                Icon: Banknote },
-  ];
+  const handleMockPay = async () => {
+    setError('');
+    setSubmitting(true);
+    try {
+      await api.post(`/payments/${order._id}/pay`, { paymentMethod: 'Mock Pay (Dev Test)' });
+      setSuccess(true);
+      setTimeout(() => {
+        onSuccess();
+        onClose();
+      }, 1000);
+    } catch (err) {
+      setError(err.response?.data?.message || err.message || 'Payment simulation failed.');
+      setSubmitting(false);
+    }
+  };
 
   return (
     <div
@@ -68,47 +144,60 @@ const PayNowModal = ({ order, onClose, onSuccess }) => {
         <div className="bg-theme-hero p-6 text-theme-primary border-b border-theme relative">
           <button
             onClick={onClose}
-            disabled={submitting}
-            className="absolute top-4 right-4 p-1.5 rounded-xl text-theme-muted hover:text-theme-primary hover:bg-theme-elevated transition-colors"
+            disabled={submitting || verifying}
+            className="absolute top-4 right-4 p-1.5 rounded-xl text-theme-muted hover:text-theme-primary hover:bg-theme-elevated transition-colors disabled:opacity-40"
           >
             <X className="h-5 w-5" />
           </button>
-          <p className="text-xs text-theme-accent uppercase tracking-widest font-bold mb-1">Secure Checkout</p>
+          <div className="flex items-center space-x-1.5 text-xs text-theme-accent uppercase tracking-widest font-bold mb-1">
+            <ShieldCheck className="h-4 w-4" />
+            <span>Secure Razorpay Checkout</span>
+          </div>
           <h2 className="text-xl font-black font-poppins">Pay for Order</h2>
           <p className="text-xs font-mono text-theme-muted mt-1 truncate">{order._id}</p>
         </div>
 
         <div className="p-6 space-y-5">
-          {/* Amount */}
-          <div className="flex items-center justify-between bg-theme-elevated rounded-2xl p-4 border border-theme">
-            <span className="text-sm font-bold text-theme-muted">Amount Due</span>
-            <span className="text-2xl font-black text-theme-primary">₹{order.totalAmount}</span>
+          {/* Amount Due Card */}
+          <div className="bg-theme-elevated rounded-2xl p-4 border border-theme space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-bold text-theme-muted">Total Amount Due</span>
+              <span className="text-2xl font-black text-theme-primary">₹{order.totalAmount}</span>
+            </div>
+            <div className="flex items-center justify-between text-xs text-theme-muted border-t border-theme pt-2">
+              <span>Services</span>
+              <span className="font-semibold text-theme-primary">{order.services?.length || 1} Service Item(s)</span>
+            </div>
+            {order.isExpress && (
+              <div className="flex items-center justify-between text-xs text-theme-accent">
+                <span>Express Service</span>
+                <span className="font-bold">24-Hour Delivery</span>
+              </div>
+            )}
           </div>
 
-          {/* Payment Method */}
-          <div className="space-y-2">
-            <p className="text-[10px] font-bold text-theme-muted uppercase tracking-wider">Select Payment Method</p>
-            <div className="grid grid-cols-3 gap-2">
-              {METHODS.map(({ id, label, sub, Icon }) => (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => setMethod(id)}
-                  className={`flex flex-col items-center p-3 rounded-2xl border-2 transition-all duration-150 text-center
-                    ${method === id
-                      ? 'border-theme-accent bg-theme-accent-light text-theme-accent shadow-sm'
-                      : 'border-theme bg-theme-surface hover:border-theme-accent text-theme-muted'
-                    }`}
-                >
-                  <Icon className={`h-5 w-5 mb-1.5 ${method === id ? 'text-theme-accent' : 'text-theme-muted'}`} />
-                  <span className={`text-xs font-black ${method === id ? 'text-theme-accent' : 'text-theme-primary'}`}>{label}</span>
-                  <span className="text-[9px] text-theme-muted leading-tight mt-0.5">{sub}</span>
-                </button>
-              ))}
+          {/* Payment Gateway Trust Info */}
+          <div className="bg-theme-surface rounded-2xl p-4 border border-theme text-left space-y-2.5">
+            <div className="flex items-center space-x-2 text-xs font-bold text-theme-primary">
+              <Lock className="h-4 w-4 text-theme-accent flex-shrink-0" />
+              <span>Supported Payment Methods</span>
+            </div>
+            <p className="text-xs text-theme-muted leading-relaxed">
+              Pay securely via UPI (GPay, PhonePe, Paytm), Debit/Credit Cards (Visa, Mastercard, RuPay), NetBanking, or Digital Wallets.
+            </p>
+            <div className="flex items-center space-x-3 pt-1 text-[11px] font-semibold text-theme-muted">
+              <span className="inline-flex items-center space-x-1">
+                <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                <span>256-Bit SSL</span>
+              </span>
+              <span className="inline-flex items-center space-x-1">
+                <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                <span>Instant Confirmation</span>
+              </span>
             </div>
           </div>
 
-          {/* Error */}
+          {/* Error Message */}
           {error && (
             <div className="flex items-center space-x-2 bg-red-500/10 border border-red-500/30 rounded-xl p-3 text-red-500 text-xs">
               <AlertCircle className="h-4 w-4 flex-shrink-0" />
@@ -116,29 +205,49 @@ const PayNowModal = ({ order, onClose, onSuccess }) => {
             </div>
           )}
 
-          {/* Success */}
+          {/* Success Message */}
           {success && (
             <div className="flex items-center space-x-2 bg-green-500/10 border border-green-500/30 rounded-xl p-3 text-green-500 text-xs">
               <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
-              <span>Payment successful! Updating your order…</span>
+              <span>Payment verified successfully! Updating your order…</span>
             </div>
           )}
 
-          {/* Confirm Button */}
+          {/* Checkout Action Button */}
           <button
             onClick={handlePay}
-            disabled={submitting || success}
+            disabled={submitting || verifying || success}
             className="w-full flex items-center justify-center space-x-2 py-3.5 bg-theme-accent text-[var(--accent-text)] font-black rounded-2xl shadow-theme-accent transition-all disabled:opacity-60 disabled:cursor-not-allowed theme-btn-hover"
           >
-            {submitting ? (
-              <Loader2 className="h-5 w-5 animate-spin" />
+            {verifying ? (
+              <>
+                <Loader2 className="h-5 w-5 animate-spin" />
+                <span>Verifying Payment Signature…</span>
+              </>
+            ) : submitting ? (
+              <>
+                <Loader2 className="h-5 w-5 animate-spin" />
+                <span>Launching Razorpay Gateway…</span>
+              </>
             ) : (
               <>
                 <CreditCard className="h-4 w-4" />
-                <span>Confirm Payment · ₹{order.totalAmount}</span>
+                <span>Pay ₹{order.totalAmount} via Razorpay</span>
               </>
             )}
           </button>
+
+          {/* Fallback Simulation Button for Dev Testing */}
+          <div className="pt-1 text-center">
+            <button
+              type="button"
+              onClick={handleMockPay}
+              disabled={submitting || verifying || success}
+              className="text-xs text-theme-muted hover:text-theme-accent transition-colors underline-offset-4 hover:underline disabled:opacity-50 py-1"
+            >
+              Simulate Test Payment (Mark as Paid)
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -242,8 +351,9 @@ const MyOrders = () => {
 
   const handlePaymentSuccess = (orderId) => {
     setOrders((prev) =>
-      prev.map((o) => o._id === orderId ? { ...o, paymentStatus: 'Paid' } : o)
+      prev.map((o) => o._id === orderId ? { ...o, paymentStatus: 'Paid', paymentMethod: 'Razorpay', paidAt: new Date() } : o)
     );
+    fetchOrders();
   };
 
   const handleReviewSubmitted = (orderId, { rating, comment }) => {

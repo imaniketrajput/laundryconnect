@@ -3,6 +3,7 @@ const Service = require("../models/Service");
 const {buildOrderQueue} = require("../utils/orderQueueService");
 const {optimizeRoute} = require("../utils/routeOptimizer");
 const { getIO } = require("../utils/socket");
+const { sendOrderConfirmationEmail, sendStatusUpdateEmail } = require("../utils/emailService");
 
 
 exports.createOrder = async (req, res) =>{
@@ -34,6 +35,11 @@ exports.createOrder = async (req, res) =>{
             totalAmount,
             currentStatus: "Placed",
             statusHistory: [{status: "Placed", timestamp: new Date()}],
+        });
+
+        // Fire-and-forget order confirmation email notification
+        sendOrderConfirmationEmail(order, req.user).catch((err) => {
+            console.error("[OrderController] Failed to send order confirmation email:", err.message);
         });
 
         res.status(201).json(order);
@@ -127,6 +133,13 @@ exports.updateOrderStatus = async (req, res) => {
       status,
       timestamp: new Date(),
     });
+
+    // Fire-and-forget status update notification (OutForDelivery & Delivered only)
+    if (status === "OutForDelivery" || status === "Delivered") {
+      sendStatusUpdateEmail(order, null, status).catch((err) => {
+        console.error("[OrderController] Failed to send status update email:", err.message);
+      });
+    }
 
     res.json({ message: "Status updated", order });
   } catch (err) {
