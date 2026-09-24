@@ -13,13 +13,10 @@ const Navbar = () => {
 
   useEffect(() => {
     const handleScroll = () => {
-      if (window.scrollY > 10) {
-        setIsScrolled(true);
-      } else {
-        setIsScrolled(false);
-      }
+      const scrolled = window.scrollY > 10;
+      setIsScrolled((prev) => (prev !== scrolled ? scrolled : prev));
     };
-    window.addEventListener('scroll', handleScroll);
+    window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
@@ -50,10 +47,10 @@ const Navbar = () => {
 
   return (
     <nav
-      className={`sticky top-0 z-50 transition-all duration-300 ${
+      className={`sticky top-0 z-50 py-3.5 border-b border-theme transition-[background-color,box-shadow,backdrop-filter] duration-200 ${
         isScrolled
-          ? 'bg-theme-surface/95 backdrop-blur-md shadow-theme-md py-3 border-b border-theme'
-          : 'bg-theme-surface py-4 border-b border-theme'
+          ? 'bg-theme-surface/95 backdrop-blur-md shadow-theme-md'
+          : 'bg-theme-surface shadow-none'
       }`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

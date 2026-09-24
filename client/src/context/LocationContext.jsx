@@ -29,44 +29,49 @@ export const LocationProvider = ({ children }) => {
 
     sessionStorage.setItem('lc_location_permission_requested', 'true');
 
-    if (!navigator.geolocation) {
-      return;
-    }
-
-    setIsLocating(true);
-
-    // Single-shot read via getCurrentPosition (not watchPosition)
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        setIsLocating(false);
-        const { latitude, longitude } = position.coords;
-        const coords = { lat: latitude, lng: longitude };
-        setDetectedLocation(coords);
-        sessionStorage.setItem('lc_detected_coords', JSON.stringify(coords));
-
-        // Reverse-geocode coordinates silently through backend proxy
-        try {
-          const res = await api.get(`/geocode/reverse?lat=${latitude}&lng=${longitude}`);
-          if (res.data && res.data.displayName) {
-            setDetectedAddress(res.data.displayName);
-            sessionStorage.setItem('lc_detected_address', res.data.displayName);
-          }
-        } catch (err) {
-          // Fail silently — never block or show banner
-          console.debug('[LocationContext] Reverse geocode non-critical warning:', err.message);
-        }
-      },
-      (error) => {
-        // Fail silently — never block, no nag banner, graceful fallback to manual entry
-        setIsLocating(false);
-        console.debug('[LocationContext] Geolocation request dismissed or unavailable:', error.message);
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 8000,
-        maximumAge: 5 * 60 * 1000,
+    // Defer geolocation request slightly after initial paint to prevent competing with first scroll
+    const timer = setTimeout(() => {
+      if (!navigator.geolocation) {
+        return;
       }
-    );
+
+      setIsLocating(true);
+
+      // Single-shot read via getCurrentPosition (not watchPosition)
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          setIsLocating(false);
+          const { latitude, longitude } = position.coords;
+          const coords = { lat: latitude, lng: longitude };
+          setDetectedLocation(coords);
+          sessionStorage.setItem('lc_detected_coords', JSON.stringify(coords));
+
+          // Reverse-geocode coordinates silently through backend proxy
+          try {
+            const res = await api.get(`/geocode/reverse?lat=${latitude}&lng=${longitude}`);
+            if (res.data && res.data.displayName) {
+              setDetectedAddress(res.data.displayName);
+              sessionStorage.setItem('lc_detected_address', res.data.displayName);
+            }
+          } catch (err) {
+            // Fail silently — never block or show banner
+            console.debug('[LocationContext] Reverse geocode non-critical warning:', err.message);
+          }
+        },
+        (error) => {
+          // Fail silently — never block, no nag banner, graceful fallback to manual entry
+          setIsLocating(false);
+          console.debug('[LocationContext] Geolocation request dismissed or unavailable:', error.message);
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 8000,
+          maximumAge: 5 * 60 * 1000,
+        }
+      );
+    }, 1200);
+
+    return () => clearTimeout(timer);
   }, []);
 
   return (

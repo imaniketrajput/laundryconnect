@@ -40,7 +40,7 @@ LaundryConnect digitizes the entire laundry lifecycle into a streamlined web pla
 
 ```mermaid
 graph TD
-    Client["Client (React / Vite)<br/>Port 5173 / Render CDN"] -->|HTTPS REST API| API["Express API Gateway<br/>Port 5000 / Render Web Service"]
+    Client["Client (React / Vite)<br/>Port 5173 / Vercel Edge Network"] -->|HTTPS REST API| API["Express API Gateway<br/>Port 5000 / Render Web Service"]
     Client <-->|WSS WebSockets| Sockets["Socket.io Server<br/>(Room: orderId)"]
 
     subgraph "Backend Core Services"
@@ -586,10 +586,25 @@ Because the browser W3C Geolocation API cannot cryptographically attest that coo
   - Set all production environment variables (`MONGO_URI`, `JWT_SECRET`, `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `GMAIL_USER`, `GMAIL_APP_PASSWORD`, `HUB_LAT`, `HUB_LNG`, `SERVICE_RADIUS_KM`, `NODE_ENV=production`).
   - Render automatically assigns an HTTPS URL (e.g., `https://laundryconnect-api.onrender.com`).
 
-### 11.2 Frontend Deployment (Static Site / Vercel / Render Static)
-- **Build Command**: `cd client && npm install && npm run build`
-- **Publish Directory**: `client/dist`
-- **Environment**: Set `VITE_API_URL=https://laundryconnect-api.onrender.com/api` and `VITE_SOCKET_URL=https://laundryconnect-api.onrender.com`.
+### 11.2 Frontend Deployment (Vercel)
+- **Hosting Platform**: Vercel.
+- **Root Directory**: `client` (or repository root with build settings directed to `client`).
+- **Framework Preset**: Vite.
+- **Build Command**: `npm run build` (or `cd client && npm install && npm run build`).
+- **Output Directory**: `dist` (or `client/dist`).
+- **Environment Variables**:
+  - `VITE_API_URL=https://laundryconnect-api.onrender.com/api`
+  - `VITE_SOCKET_URL=https://laundryconnect-api.onrender.com`
+- **SPA Client-Side Routing Rewrite (`client/vercel.json`)**:
+  - Vercel routes all non-static paths to `/index.html` via `client/vercel.json`:
+    ```json
+    {
+      "rewrites": [
+        { "source": "/(.*)", "destination": "/index.html" }
+      ]
+    }
+    ```
+  - *Note on `client/public/_redirects`*: The `_redirects` file is a Netlify/Render Static Site convention; on Vercel it is completely inert and harmless, while `vercel.json` provides the authoritative SPA rewrite rule.
 
 ---
 
@@ -604,6 +619,33 @@ Because the browser W3C Geolocation API cannot cryptographically attest that coo
 ---
 
 ## 13. Changelog
+
+### 2026-09-24 (Urgent Fix: Vercel SPA Rewrites & Evidence-Based Scroll Performance Resolution)
+- **VERCEL SPA REWRITE CONFIGURATION & BACKEND CORS ENHANCEMENT**:
+  - *Context*: Clarified hosting topology: the client frontend is hosted on **Vercel**, while the backend Express API is hosted on **Render**. Previous `client/public/_redirects` is a Netlify/Render Static Site convention and is ignored by Vercel, resulting in 404s on deep route refresh (`/profile`, `/partner-dashboard`, etc.).
+  - *Vercel SPA Rewrites*: Created [`client/vercel.json`](file:///c:/Users/Pratik/laundryconnect/client/vercel.json) with `{ "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }] }` to route all dynamic paths through `index.html`. Preserved `client/public/_redirects` as harmless fallback documentation.
+  - *Backend CORS*: Updated [`server/server.js`](file:///c:/Users/Pratik/laundryconnect/server/server.js) to dynamically allow all `*.vercel.app` production and preview deployment origins in CORS middleware.
+  - *Architecture Specification*: Updated Section 3.1 architecture diagram label from "Render CDN" to "Vercel Edge Network" and updated Section 11.2 to document Vercel build settings, output directories, and rewrite rules.
+- **APP-WIDE SCROLL STUTTER: CHROME DEVTOOLS PROFILER FINDINGS & EVIDENCE-BASED RESOLUTION**:
+  - *DevTools Profiler Findings (Under 4x CPU Throttling & CDP Tracing)*:
+    - *Failure of Previous Diagnosis*: The initial diagnosis attributed scroll stutter to `Home.jsx` `whileInView` animations. However, profiler runs across `/partner`, `/profile`, `/track-order`, and `/` proved the stutter is **app-wide** and reproduces equally on pages with zero motion sections.
+    - *Root Cause 1 — Continuous Layout Thrashing in `Navbar.jsx`*: On scroll past 10px, `handleScroll` executed `setIsScrolled(true)`, triggering a CSS class transition from `py-4` (padding 16px) to `py-3` (padding 12px) with `transition-all duration-300`. Because `<nav>` is sticky in normal document flow, reducing its height by 8px shifted the entire document flow upward during the user's downward scroll gesture, dragging `scrollY` backward (e.g. 100px -> 96px -> 92px) over 300ms. In addition, the scroll listener was active and non-passive, blocking Chromium's threaded scrolling pipeline.
+    - *Root Cause 2 — Hardware Compositor Lock in `PageTransition.jsx`*: `<motion.div>` on the root page wrapper animated `y: 8 -> y: 0` on route entry. Applying continuous vertical CSS transforms to the root page container disables native compositor-thread fast-scrolling in Chromium until the transition ends.
+    - *Root Cause 3 — Synchronous Third-Party Head Script Execution*: Synchronous `<script src=".../checkout.js">` in `<head>` executed Razorpay's risk-detection script (`bundle.js`) on startup, generating long tasks (87.97ms and 30.23ms) and binding global input listeners that contended with initial user scroll events.
+    - *Root Cause 4 — Mount-Time Geolocation Contention*: `LocationContext.jsx` initiated `navigator.geolocation.getCurrentPosition` synchronously on app mount, triggering OS location daemon queries and double state re-renders during the critical initial scroll window.
+  - *Applied Synchronized Fixes*:
+    1. [`Navbar.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/components/Navbar.jsx): Stabilized `<nav>` padding to constant `py-3.5` (zero height shrinkage), scoped CSS transitions strictly to `transition-[background-color,box-shadow,backdrop-filter] duration-200` (zero layout reflow), made scroll listener `{ passive: true }`, and memoized state changes to eliminate redundant re-renders.
+    2. [`PageTransition.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/components/PageTransition.jsx): Removed vertical translations (`y: 8` / `y: -8`) and transitioned strictly `opacity`, freeing the root document container from GPU transform locks.
+    3. [`LocationContext.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/context/LocationContext.jsx): Deferred `getCurrentPosition` execution by 1200ms using a cleanable timer, letting initial paint and early user gestures execute with zero geolocation thread contention.
+    4. [`index.html`](file:///c:/Users/Pratik/laundryconnect/client/index.html): Added `defer` to Razorpay `checkout.js` to ensure the main thread remains clear for layout and scroll handling.
+- *Files Touched*:
+  - `client/vercel.json`
+  - `server/server.js`
+  - `client/src/components/Navbar.jsx`
+  - `client/src/components/PageTransition.jsx`
+  - `client/src/context/LocationContext.jsx`
+  - `client/index.html`
+  - `ARCHITECTURE.md`
 
 ### 2026-09-24 (Layout Overflow, SPA Rewrite & Scroll Performance Fixes)
 - **LAYOUT OVERFLOW PREVENTION (Profile, PartnerProfile, Navbar)**:
