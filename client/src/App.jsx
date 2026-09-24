@@ -7,6 +7,7 @@ import { LocationProvider } from './context/LocationContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
+import ChatWidget from './components/ChatWidget';
 import PageTransition from './components/PageTransition';
 
 // Pages
@@ -109,6 +110,7 @@ function App() {
                 <AnimatedRoutes />
               </main>
               <Footer />
+              <ChatWidget />
             </div>
           </Router>
         </LocationProvider>

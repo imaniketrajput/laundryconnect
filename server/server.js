@@ -48,6 +48,7 @@ app.use("/api/slots", require("./routes/slotRoutes"));
 app.use("/api/partners", require("./routes/partnerRoutes"));
 app.use("/api/payments", require("./routes/paymentRoutes"));
 app.use("/api/geocode", require("./routes/geocodeRoutes"));
+app.use("/api/chat", require("./routes/chatRoutes"));
 
 app.get('/', (req, res) => res.send('LaundryConnect API running'));
 
