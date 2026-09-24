@@ -262,8 +262,8 @@ const OrderLiveMap = ({
   const isActiveDelivery = ['PickedUp', 'Washing', 'Ready', 'OutForDelivery'].includes(currentStatus);
   const showPartnerMarker = isPartnerView ? validPartner : (isActiveDelivery && validPartner);
 
-  // Default fallback center: Bangalore hub coordinates
-  const defaultCenter = [12.9716, 77.5946];
+  // Default fallback center: Jalandhar facility hub coordinates
+  const defaultCenter = [31.3260, 75.5762];
   const initialCenter = validPickup
     ? [pickupLocation.lat, pickupLocation.lng]
     : validPartner

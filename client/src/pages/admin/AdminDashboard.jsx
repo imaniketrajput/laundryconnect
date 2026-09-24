@@ -19,7 +19,7 @@ const AdminDashboard = () => {
 
   // Forms states
   const [newService, setNewService] = useState({ name: '', category: 'Laundry', pricePerUnit: '', unit: 'kg', description: '' });
-  const [newPartner, setNewPartner] = useState({ userId: '', vehicleType: 'Bike', lat: '12.9716', lng: '77.5946' });
+  const [newPartner, setNewPartner] = useState({ userId: '', vehicleType: 'Bike', lat: '31.3260', lng: '75.5762' });
   const [newSlot, setNewSlot] = useState({ partnerId: '', date: '', startTime: '09:00', endTime: '11:00' });
   
   // Status flags
@@ -75,7 +75,7 @@ const AdminDashboard = () => {
         currentLocation: { lat: parseFloat(newPartner.lat), lng: parseFloat(newPartner.lng) }
       });
       setMsg({ text: 'Partner profile instantiated successfully!', type: 'success' });
-      setNewPartner({ userId: '', vehicleType: 'Bike', lat: '12.9716', lng: '77.5946' });
+      setNewPartner({ userId: '', vehicleType: 'Bike', lat: '31.3260', lng: '75.5762' });
       fetchData();
     } catch (err) {
       setMsg({ text: err.response?.data?.message || 'Failed to create partner profile.', type: 'error' });

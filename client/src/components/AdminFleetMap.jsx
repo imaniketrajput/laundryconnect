@@ -61,7 +61,19 @@ const MarkerClusterGroup = ({ partners }) => {
       const popupHtml = `
         <div style="font-family: sans-serif; padding: 4px; min-width: 200px;">
           <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
-            <strong style="font-size: 13px; color: #0f172a;">${partner.name}</strong>
+            <div style="display: flex; align-items: center; gap: 4px;">
+              <strong style="font-size: 13px; color: #0f172a;">${partner.name}</strong>
+              ${
+                partner.isProfileComplete
+                  ? `<span title="Profile Complete" style="display: inline-flex; align-items: center; color: #3b82f6;">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="#3b82f6" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.78 4 4 0 0 1 0 6.74 4 4 0 0 1-4.77 4.78 4 4 0 0 1-6.75 0 4 4 0 0 1-4.78-4.77 4 4 0 0 1 0-6.76Z" />
+                        <path d="m9 12 2 2 4-4" stroke="#ffffff" fill="none" />
+                      </svg>
+                    </span>`
+                  : ''
+              }
+            </div>
             <span style="font-size: 9px; font-weight: bold; text-transform: uppercase; padding: 2px 6px; border-radius: 4px; background: ${
               isAvailable ? '#ecfdf5' : '#fffbeb'
             }; color: ${isAvailable ? '#059669' : '#d97706'}; border: 1px solid ${
@@ -162,7 +174,7 @@ const AdminFleetMap = () => {
   const availablePartners = partners.filter((p) => p.isAvailable).length;
   const onDeliveryPartners = partners.filter((p) => !!p.currentOrder).length;
 
-  const defaultCenter = [12.9716, 77.5946]; // Bangalore hub default
+  const defaultCenter = [31.3260, 75.5762]; // Jalandhar facility hub default
 
   return (
     <div className="space-y-4">

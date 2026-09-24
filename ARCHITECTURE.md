@@ -431,7 +431,12 @@ Because the browser W3C Geolocation API cannot cryptographically attest that coo
 - **Frontend Debounced Search**:
   - In [`SchedulePickup.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/pages/customer/SchedulePickup.jsx), keystrokes are debounced by 400ms (minimum 3 characters).
   - Selecting an address dropdown recommendation immediately populates the full street address and captures the exact `{ lat, lng }` coordinates.
-  - The geocoded coordinates are transmitted directly in `POST /api/orders` (`pickupLocation`), eliminating downstream geocoding latency during dispatch. The server preserves automatic Nominatim geocoding as a fallback for manually entered addresses.
+  - The geocoded coordinates are transmitted directly in `POST /api/orders` (`pickupLocation`), eliminating downstream geocoding latency during dispatch.
+- **Phase 7 Bug Fix — Zero Silent Fallback Coordinates & Strict Geocode Validation**:
+  - *Previous Vulnerability*: When Nominatim failed to resolve an address (or a user typed arbitrary text without choosing a suggestion), `geocoder.js` returned a hardcoded Bangalore coordinate (`12.9716, 77.5946`). Once the facility hub was set in Jalandhar (`31.3260, 75.5762`), unresolved addresses silently computed a ~2,050 km distance and charged ₹16,000+ delivery.
+  - *Permanent Resolution*: Removed all hardcoded fallback coordinates from `geocoder.js`. Unresolvable addresses strictly return `null`. In [`orderController.js`](file:///c:/Users/Pratik/laundryconnect/server/controllers/orderController.js), `createOrder` rejects unverified addresses with HTTP 400 (`"Pickup address could not be verified"`). `estimateDeliveryFee` returns `{ unverified: true, deliveryCharge: null }`. On [`SchedulePickup.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/pages/customer/SchedulePickup.jsx), the "Confirm & Pay" button remains disabled with inline guidance until an address is verified from suggestions or saved addresses.
+- **Saved-Address Checkout Shortcut**:
+  - Logged-in customers with structured saved addresses in their profile have their default address automatically pre-selected on [`SchedulePickup.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/pages/customer/SchedulePickup.jsx) with verified GPS coordinates. Customers can toggle between saved address pills ("Home", "Work", "+ Other Address") with one click, bypassing autocomplete re-entry completely and eliminating geocoding failure risk.
 
 ### 9.6 Smooth Animated, Rotating Partner Marker (Interpolation & Bearing)
 - **Problem**: Raw GPS fixes arriving intermittently every 5-7 seconds cause the delivery partner's marker to jerkily teleport across the map.
@@ -485,6 +490,70 @@ Because the browser W3C Geolocation API cannot cryptographically attest that coo
   - Polls every 15 seconds to provide administrators an operational overview without the server-side memory overhead of dozens of full-duplex socket subscriptions.
   - Returns driver profile details, live persisted `{ lat, lng }` coordinates, vehicle type, availability flags, and active order references (`#ORDERID`, destination, total amount) for immediate inspection in map popups.
 
+### 9.10 Site-Wide One-Time Location Permission & Reverse Geocoding
+- **One-Time Non-Blocking Prompt**:
+  - Encapsulated within [`LocationContext.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/context/LocationContext.jsx).
+  - On first application load or login, prompts `navigator.geolocation.getCurrentPosition` once using a single-shot read (distinct from the multi-reading `watchPosition` used during active delivery tracking).
+  - Controlled by `sessionStorage.getItem('lc_location_permission_requested')` so the browser never re-prompts the user across the same browser session.
+  - Does not block initial rendering or route transitions.
+- **Fail-Silent Resilience**:
+  - If the user declines permission or location hardware is unavailable, the handler terminates silently without rendering annoying error banners or modal nags. The platform gracefully falls back to manual autocomplete search.
+- **Proxied Reverse Geocoding**:
+  - Endpoint: `GET /api/geocode/reverse?lat=..&lng=..` brokered via [`server/utils/geocoder.js`](file:///c:/Users/Pratik/laundryconnect/server/utils/geocoder.js) (`reverseGeocode`).
+  - Calls Nominatim's `/reverse` endpoint with strict 1-second rate-limiting and custom User-Agent, resolving coordinates to human-readable street addresses.
+  - Automatically suggests the detected address on [`SchedulePickup.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/pages/customer/SchedulePickup.jsx) as a starting point if the customer has no saved default address.
+  - For delivery partners, provides an effortless one-click option to establish their starting Base Location upon onboarding.
+
+### 9.11 User & Partner Profile Management
+- **Data Model Additions**:
+  - Extended [`User.js`](file:///c:/Users/Pratik/laundryconnect/server/models/User.js) schema:
+    - `profilePhoto`: Base64 string data URL.
+    - `savedAddresses`: Array of subdocuments `{ label, fullAddress, lat, lng, isDefault }`.
+    - `dateOfBirth`: String.
+    - `gender`: String enum (`Male`, `Female`, `Other`, `Prefer not to say`).
+    - `isActive`: Boolean (default: `true`, toggled to `false` upon account deletion).
+  - Extended [`DeliveryPartner.js`](file:///c:/Users/Pratik/laundryconnect/server/models/DeliveryPartner.js) schema:
+    - `profilePhoto`: Base64 image string.
+    - `baseLocation`: `{ address, lat, lng }` (driver's starting dispatch point).
+    - `vehicleType`: Editable (`Bike`, `Scooter`, `Van`, `EV-Bike`).
+- **REST API Endpoints**:
+  - Customer Profile:
+    - `GET /api/users/profile` — Retrieves user account details and saved addresses.
+    - `PUT /api/users/profile` — Updates personal information (`name`, `phone`, `dateOfBirth`, `gender`). Strictly locks email.
+    - `PUT /api/users/profile/address` — Manages saved address book (`action: "add" | "edit" | "delete" | "setDefault"`).
+    - `POST /api/users/profile/photo` — Uploads Base64 profile photo.
+    - `DELETE /api/users/profile` — Initiates account deletion with confirmation phrase.
+  - Partner Profile:
+    - `GET /api/partners/profile` — Retrieves partner document populated with linked user info.
+    - `PUT /api/partners/profile` — Updates vehicle type, base starting location, driver photo, and contact details.
+    - `DELETE /api/partners/profile` — Deactivates partner from dispatch queues and deletes user account.
+- **Security & Email Immutability (Defense in Depth)**:
+  - Email addresses are permanently locked on client profile pages with a lock icon and tooltip explanation.
+  - The backend controllers ([`userController.js`](file:///c:/Users/Pratik/laundryconnect/server/controllers/userController.js) and [`partnerController.js`](file:///c:/Users/Pratik/laundryconnect/server/controllers/partnerController.js)) strictly check `if (email && email !== user.email) return res.status(400)`. Bypassing the client UI with direct curl/Postman requests cannot modify account emails.
+  - All endpoints use `protect` middleware and bind operations strictly to `req.user.id`, eliminating IDOR risks.
+- **Profile Photo Storage Architecture (Free & Keyless)**:
+  - Client-side canvas compression ([`imageCompressor.js`](file:///c:/Users/Pratik/laundryconnect/client/src/utils/imageCompressor.js)) scales avatars down to max 400x400 at 0.82 JPEG quality, yielding lightweight ~50-90KB Base64 data strings.
+  - Stored directly in MongoDB without paid third-party infrastructure (zero AWS S3 or Cloudinary bills).
+  - *Trade-off*: Direct document storage avoids cloud complexity and hosting expenses for academic/prototype deployment; for high-volume enterprise scale, storage can be shifted to object buckets with CDN pre-signed upload URLs.
+- **Multi-Source Photo Upload Pipeline (Webcam, Native Camera Capture & File Picker)**:
+  - Both Customer and Delivery Partner profile pages provide three clear, distinct options when updating their photo:
+    1. **"Use Webcam"** (Desktop & WebRTC): Opens a dedicated modal ([`WebcamCaptureModal.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/components/WebcamCaptureModal.jsx)) using `navigator.mediaDevices.getUserMedia({ video: true })` with a real-time mirrored live stream preview. Users can click "Capture Photo" to freeze a centered square frame onto canvas, review the still photo, and choose "Retake" or "Use This Photo". When closed, cancelled, or unmounted, all media tracks are strictly stopped (`stream.getTracks().forEach(t => t.stop())`) to ensure device hardware lights immediately shut off. Gracefully handles permission denial or missing hardware with inline user guidance.
+    2. **"Take Photo"** (Mobile Native): Uses standard HTML5 `<input type="file" accept="image/*" capture="user">` to launch the device camera shutter directly on mobile browsers without permissions overhead, falling back to file picker on desktop.
+    3. **"Choose from Files"**: Standard OS file selector.
+  - **Unified Compression Pipeline**: Whichever input method is selected (webcam capture, camera shutter, or file picker), the resulting image routes through the exact same client-side canvas compression pipeline in [`imageCompressor.js`](file:///c:/Users/Pratik/laundryconnect/client/src/utils/imageCompressor.js) (400x400 max, 0.82 quality JPEG Base64) before dispatching to the backend.
+- **Verified Badge at 100% Profile Completeness (Completeness vs. Identity Verification Clarification)**:
+  - When a user's or partner's profile completeness reaches exactly 100% (satisfying all checklist criteria: name, email, phone, avatar photo, saved address / vehicle type, DOB or gender / base location), a small blue verified badge (`BadgeCheck`, `#3B82F6`) displays immediately next to their name across [`Profile.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/pages/customer/Profile.jsx), [`PartnerProfile.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/pages/partner/PartnerProfile.jsx), [`Navbar.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/components/Navbar.jsx) (both desktop user pill and mobile drawer), and [`AdminFleetMap.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/components/AdminFleetMap.jsx) popups.
+  - **CRITICAL ARCHITECTURAL CLARIFICATION**: This badge is purely a client-side visual completeness indicator intended to motivate profile onboarding. It is **NOT** a claim of legal identity verification, government ID KYC, or background check admin approval. Accordingly, the badge tooltip is strictly labeled `"Profile Complete"` across all surfaces (never `"Identity Verified"`). It updates reactively in real time without page reload when profile attributes are updated or cleared.
+- **Account Deletion & Historical Order Preservation Policy**:
+  - Confirmation Modal requires typing `"DELETE"` or the account email to confirm, avoiding accidental deletion.
+  - **Audit & Financial Record Integrity**: Orders represent tax, legal, and payment records that cannot vanish. Rather than hard-deleting the user and leaving dangling broken references or cascading order deletion, the system performs a **GDPR-compliant Soft Deletion and Anonymization**:
+    1. Sets `user.isActive = false`.
+    2. Scrubs PII: `name = "Deleted Customer"`, `phone = null`, `address = null`, `savedAddresses = []`, `profilePhoto = null`.
+    3. Transforms email: `user.email = "deleted_" + Date.now() + "_" + user.email` (freeing the original email address so the user can re-register in the future if desired).
+    4. For partners, deactivates availability (`isAvailable = false`) and removes active fleet dispatch entries.
+    5. Historical orders remain permanently intact with verified financial line items and audit integrity.
+    6. Future login attempts with the original email immediately fail with HTTP 400 (`"Invalid credentials"`).
+
 ---
 
 ## 10. Environment Variables
@@ -501,8 +570,8 @@ Because the browser W3C Geolocation API cannot cryptographically attest that coo
 | `CLIENT_URL` | `server/.env` | Optional | Deployed frontend origin allowed by CORS. |
 | `VITE_API_URL` | `client/.env` | Optional | Overrides backend API base URL (Default: `http://localhost:5000/api` in dev). |
 | `VITE_SOCKET_URL` | `client/.env` | Optional | Overrides Socket.io server connection URL (Default: `http://localhost:5000` in dev). |
-| `HUB_LAT` | `server/.env` | Optional (Default: `12.9716`) | Central facility latitude for distance-based delivery pricing. |
-| `HUB_LNG` | `server/.env` | Optional (Default: `77.5946`) | Central facility longitude for distance-based delivery pricing. |
+| `HUB_LAT` | `server/.env` | Optional (Default: `31.3260`) | Central facility latitude in Jalandhar for distance-based delivery pricing. |
+| `HUB_LNG` | `server/.env` | Optional (Default: `75.5762`) | Central facility longitude in Jalandhar for distance-based delivery pricing. |
 | `SERVICE_RADIUS_KM` | `server/.env` | Deprecated (Phase 6) | Previously used for hard geofence rejection; replaced by dynamic distance pricing. |
 
 ---
@@ -536,7 +605,81 @@ Because the browser W3C Geolocation API cannot cryptographically attest that coo
 
 ## 13. Changelog
 
-### 2026-09-24
+### 2026-09-24 (Phase 7B)
+- **CAMERA CAPTURE FOR PROFILE PHOTO & VERIFIED BADGE AT 100% COMPLETION (Phase 7B)**:
+  - *Dual Profile Photo Upload (Native Camera + File Picker)*:
+    - Added floating popover menu on avatar photo controls in both [`Profile.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/pages/customer/Profile.jsx) and [`PartnerProfile.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/pages/partner/PartnerProfile.jsx).
+    - "Take Photo" uses native HTML5 `<input type="file" accept="image/*" capture="user">` to launch device camera without complex `getUserMedia()` streams or permissions dance, gracefully falling back to file picker on desktop.
+    - "Choose from Files" preserves standard OS file picker.
+    - Both sources pass through the exact same canvas compression pipeline in [`imageCompressor.js`](file:///c:/Users/Pratik/laundryconnect/client/src/utils/imageCompressor.js) (max 400x400, 0.82 JPEG quality Base64).
+  - *Verified Badge at 100% Profile Completeness*:
+    - Rendered blue `BadgeCheck` icon (`#3B82F6`) immediately next to user and partner names across [`Profile.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/pages/customer/Profile.jsx), [`PartnerProfile.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/pages/partner/PartnerProfile.jsx), [`Navbar.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/components/Navbar.jsx) (desktop user pill and mobile navigation drawer), and [`AdminFleetMap.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/components/AdminFleetMap.jsx) popups.
+    - Clarification: Badge is strictly a client-side completeness indicator, NOT a claim of legal KYC/identity verification. Tooltip is strictly labeled `"Profile Complete"`.
+    - Updates reactively without page reloads via `updateUser` in `AuthContext`.
+  - *Desktop Live Webcam Capture (`WebcamCaptureModal.jsx`)*:
+    - Added "Use Webcam" option using `navigator.mediaDevices.getUserMedia` when camera hardware is available.
+    - Integrated live mirrored `<video>` preview, centered square canvas freeze, still frame retake/confirm flow, and immediate video track termination (`t.stop()`) on modal close, cancel, or unmount.
+    - Captures flow directly into the existing client-side `compressImage` pipeline without separate code paths.
+  - *Files Touched*:
+    - `client/src/components/WebcamCaptureModal.jsx`
+    - `client/src/context/AuthContext.jsx`
+    - `client/src/components/Navbar.jsx`
+    - `client/src/pages/customer/Profile.jsx`
+    - `client/src/pages/partner/PartnerProfile.jsx`
+    - `client/src/components/AdminFleetMap.jsx`
+    - `server/controllers/partnerController.js`
+    - `ARCHITECTURE.md`
+
+### 2026-09-24 (Phase 7)
+- **ZERO FALLBACK GEOCODING FIX, SITE-WIDE LOCATION PERMISSION & FULL PROFILES (Phase 7)**:
+  - *Critical Bug Fix (Zero Silent Fallback Coordinates)*:
+    - Removed hardcoded Bangalore fallback coordinate `{ lat: 12.9716, lng: 77.5946 }` completely from `server/utils/geocoder.js`. Unresolved addresses strictly return `null`.
+    - Server-side `orderController.createOrder` rejects unverified pickup locations with HTTP 400 (`"Pickup address could not be verified"`). `estimateDeliveryFee` returns `{ unverified: true, deliveryCharge: null }` without computing distance or charges.
+    - Audited and updated leftover Bangalore coordinates in `orderController.js`, `.env`, `AdminFleetMap.jsx`, `OrderLiveMap.jsx`, `PartnerDashboard.jsx`, and `AdminDashboard.jsx` to facility hub in Jalandhar (`31.3260`, `75.5762`).
+    - On `SchedulePickup.jsx`, "Confirm & Pay" button remains disabled with clear inline guidance until a verified address is selected.
+  - *Site-Wide One-Time Location Permission*:
+    - Created `client/src/context/LocationContext.jsx` with non-blocking single-shot `getCurrentPosition` on session load.
+    - Proxies through `GET /api/geocode/reverse?lat=..&lng=..` to pre-fill pickup address suggestions if no saved address exists.
+    - Fails silently on rejection without annoying banners or disruption.
+  - *Customer Profile Page (`/profile`)*:
+    - Extended `User.js` with `profilePhoto`, `savedAddresses` array, `dateOfBirth`, `gender`, and `isActive`.
+    - Created `client/src/pages/customer/Profile.jsx` with per-section edit toggles, read-only locked email (with lock icon & tooltip), saved address manager (reusing Nominatim autocomplete), avatar upload, profile completeness indicator (0-100%), and destructive account deletion.
+    - Linked from Navbar with avatar thumbnail support.
+    - Saved address checkout shortcut: default address auto-fills in `SchedulePickup.jsx` with quick-select pills ("Home", "Work", "+ Other Address").
+  - *Delivery Partner Profile Page (`/partner/profile`)*:
+    - Extended `DeliveryPartner.js` with `profilePhoto`, `baseLocation` (`address`, `lat`, `lng`), and editable `vehicleType`.
+    - Created `client/src/pages/partner/PartnerProfile.jsx` with base location picker (pre-filling live location before active GPS broadcast), photo upload, locked email, and account deletion.
+  - *Account Deletion & Data Retention Policy*:
+    - Built `DELETE /api/users/profile` and `DELETE /api/partners/profile` with `"DELETE"` confirmation.
+    - Implemented GDPR soft deletion and PII anonymization while strictly preserving historical orders for financial/audit compliance.
+  - *Zero-Cost Profile Photo Storage*:
+    - Created `client/src/utils/imageCompressor.js` using browser Canvas API to resize avatars to max 400x400 JPEG (< 100KB Base64) stored directly in MongoDB.
+  - *Files Touched*:
+    - `server/utils/geocoder.js`
+    - `server/routes/geocodeRoutes.js`
+    - `server/models/User.js`
+    - `server/models/DeliveryPartner.js`
+    - `server/controllers/userController.js`
+    - `server/routes/userRoutes.js`
+    - `server/controllers/partnerController.js`
+    - `server/routes/partnerRoutes.js`
+    - `server/controllers/orderController.js`
+    - `server/controllers/authController.js`
+    - `server/server.js`
+    - `server/.env`
+    - `client/src/App.jsx`
+    - `client/src/components/Navbar.jsx`
+    - `client/src/components/AddressAutocomplete.jsx`
+    - `client/src/utils/imageCompressor.js`
+    - `client/src/context/LocationContext.jsx`
+    - `client/src/pages/customer/Profile.jsx`
+    - `client/src/pages/partner/PartnerProfile.jsx`
+    - `client/src/pages/customer/SchedulePickup.jsx`
+    - `client/src/components/AdminFleetMap.jsx`
+    - `client/src/components/OrderLiveMap.jsx`
+    - `client/src/pages/partner/PartnerDashboard.jsx`
+    - `client/src/pages/admin/AdminDashboard.jsx`
+    - `ARCHITECTURE.md`
 - **DYNAMIC DISTANCE-BASED DELIVERY PRICING (Phase 6)**:
   - *Context & Problem*: Hard geofencing rejected legitimate customers residing outside a rigid 15km radius. A modern logistics platform should serve customers at any distance, with delivery pricing scaling dynamically according to actual transit distance rather than rejecting orders.
   - *Distance-Tiered Formula*:

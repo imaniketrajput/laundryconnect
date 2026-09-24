@@ -120,7 +120,7 @@ const PartnerDashboard = () => {
         return { id, lat: coord.lat, lng: coord.lng };
       });
       const res = await api.post('/orders/optimize-route', {
-        startLocation: { lat: 12.9716, lng: 77.5946 },
+        startLocation: { lat: 31.3260, lng: 75.5762 },
         stops
       });
       setOptimizedRoute(res.data.optimizedRoute);
@@ -716,7 +716,7 @@ const PartnerDashboard = () => {
             <div className="border border-theme bg-theme-elevated/40 p-4 rounded-2xl text-xs space-y-2">
               <div className="flex justify-between">
                 <span className="text-theme-muted font-bold">Start Location:</span>
-                <span className="font-mono font-bold text-theme-primary">12.9716, 77.5946 (Base)</span>
+                <span className="font-mono font-bold text-theme-primary">31.3260, 75.5762 (Jalandhar Hub)</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-theme-muted font-bold">Stops Selected:</span>

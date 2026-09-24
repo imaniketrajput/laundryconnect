@@ -7,9 +7,9 @@ const { getIO } = require("../utils/socket");
 const { sendOrderConfirmationEmail, sendStatusUpdateEmail } = require("../utils/emailService");
 const { geocodeAddress } = require("../utils/geocoder");
 
-// Facility Hub & Distance-Based Delivery Pricing Parameters
-const HUB_LAT = parseFloat(process.env.HUB_LAT) || 12.9716;
-const HUB_LNG = parseFloat(process.env.HUB_LNG) || 77.5946;
+// Facility Hub & Distance-Based Delivery Pricing Parameters (Jalandhar Central Hub)
+const HUB_LAT = parseFloat(process.env.HUB_LAT) || 31.3260;
+const HUB_LNG = parseFloat(process.env.HUB_LNG) || 75.5762;
 const BASE_DELIVERY_CHARGE = 20; // Base charge covering roughly the first ~3km from hub
 const BASE_INCLUDED_KM = 3;     // Kilometers included in the base delivery charge
 const PER_KM_RATE = 8;          // Rate per additional km beyond base-included distance
@@ -107,22 +107,23 @@ exports.createOrder = async (req, res) =>{
         }
 
         // Distance-Based Dynamic Delivery Fee:
-        // As of Phase 6, hard geofence rejections are removed. Deliveries scale by actual distance.
-        let deliveryDistanceKm = 0;
-        let deliveryCharge = BASE_DELIVERY_CHARGE;
-
+        // Require valid geocoded pickup coordinates (no silent fallback coordinates)
         if (
-            pickupLocation &&
-            typeof pickupLocation.lat === "number" &&
-            typeof pickupLocation.lng === "number"
+            !pickupLocation ||
+            typeof pickupLocation.lat !== "number" ||
+            typeof pickupLocation.lng !== "number" ||
+            isNaN(pickupLocation.lat) ||
+            isNaN(pickupLocation.lng)
         ) {
-            const rawDist = haversineDistance({ lat: HUB_LAT, lng: HUB_LNG }, pickupLocation);
-            const feeCalc = calculateDeliveryFee(rawDist, itemsSubtotal);
-            deliveryDistanceKm = feeCalc.distanceKm;
-            deliveryCharge = feeCalc.deliveryCharge;
-        } else {
-            deliveryCharge = itemsSubtotal > 349 ? 0 : BASE_DELIVERY_CHARGE;
+            return res.status(400).json({
+                message: "Pickup address could not be verified. Please select an address from the suggestions or check your street details."
+            });
         }
+
+        const rawDist = haversineDistance({ lat: HUB_LAT, lng: HUB_LNG }, pickupLocation);
+        const feeCalc = calculateDeliveryFee(rawDist, itemsSubtotal);
+        const deliveryDistanceKm = feeCalc.distanceKm;
+        const deliveryCharge = feeCalc.deliveryCharge;
 
         const expressFee = isExpress ? 150 : 0;
         const totalAmount = itemsSubtotal + deliveryCharge + expressFee;
@@ -132,7 +133,7 @@ exports.createOrder = async (req, res) =>{
             customer: customerId,
             services,
             pickupAddress: pickupAddress.trim(),
-            pickupLocation: pickupLocation || undefined,
+            pickupLocation: pickupLocation,
             deliveryDistanceKm,
             pickupDate,
             isExpress: !!isExpress,
@@ -167,16 +168,28 @@ exports.estimateDeliveryFee = async (req, res) => {
             if (req.query.address && req.query.address.trim()) {
                 try {
                     const coords = await geocodeAddress(req.query.address.trim());
-                    lat = coords.lat;
-                    lng = coords.lng;
+                    if (coords && typeof coords.lat === "number" && typeof coords.lng === "number") {
+                        lat = coords.lat;
+                        lng = coords.lng;
+                    }
                 } catch (e) {
-                    lat = HUB_LAT;
-                    lng = HUB_LNG;
+                    console.warn("[OrderController] Failed to geocode address for estimate:", e.message);
                 }
-            } else {
-                lat = HUB_LAT;
-                lng = HUB_LNG;
             }
+        }
+
+        // If coordinates cannot be verified, return unverified state without computing distance
+        if (isNaN(lat) || isNaN(lng)) {
+            return res.json({
+                unverified: true,
+                message: "Please select an address from suggestions to calculate delivery charge",
+                deliveryCharge: null,
+                distanceKm: null,
+                baseDeliveryCharge: BASE_DELIVERY_CHARGE,
+                baseIncludedKm: BASE_INCLUDED_KM,
+                perKmRate: PER_KM_RATE,
+                hub: { lat: HUB_LAT, lng: HUB_LNG },
+            });
         }
 
         const rawDist = haversineDistance({ lat: HUB_LAT, lng: HUB_LNG }, { lat, lng });
@@ -184,6 +197,7 @@ exports.estimateDeliveryFee = async (req, res) => {
 
         res.json({
             ...feeData,
+            unverified: false,
             baseDeliveryCharge: BASE_DELIVERY_CHARGE,
             baseIncludedKm: BASE_INCLUDED_KM,
             perKmRate: PER_KM_RATE,

@@ -1,20 +1,24 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useLocation } from '../../context/LocationContext';
 import api from '../../api/axios';
 import { 
   Calendar as CalendarIcon, MapPin, Truck, AlertTriangle, 
   Sparkles, CheckCircle2, ChevronRight, Plus, Minus, Trash2,
   Printer, Download, ArrowRight, ShieldCheck, RefreshCw, CreditCard,
-  Loader2, Check, X
+  Loader2, Check, X, Bookmark
 } from 'lucide-react';
 
 const SchedulePickup = () => {
   const { user } = useAuth();
+  const { detectedLocation, detectedAddress } = useLocation();
   const navigate = useNavigate();
   const [cart, setCart] = useState({});
   const [pickupAddress, setPickupAddress] = useState(user?.address || '');
   const [selectedLocation, setSelectedLocation] = useState(null); // { lat, lng }
+  const [savedAddresses, setSavedAddresses] = useState([]);
+  const [selectedAddressId, setSelectedAddressId] = useState(null); // '_id', 'detected', or 'custom'
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [searchingAddress, setSearchingAddress] = useState(false);
@@ -31,6 +35,43 @@ const SchedulePickup = () => {
   const [verifiedOrder, setVerifiedOrder] = useState(null);
   const [verifiedInvoice, setVerifiedInvoice] = useState(null);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
+
+  // Load user saved addresses and auto-select default saved address
+  useEffect(() => {
+    let isMounted = true;
+    const loadProfileAddresses = async () => {
+      try {
+        const res = await api.get('/users/profile');
+        const list = res.data?.user?.savedAddresses;
+        if (isMounted && Array.isArray(list) && list.length > 0) {
+          setSavedAddresses(list);
+          const defaultAddr = list.find((a) => a.isDefault) || list[0];
+          if (defaultAddr) {
+            setSelectedAddressId(defaultAddr._id);
+            isSelectedFromSuggestionRef.current = true;
+            setPickupAddress(defaultAddr.fullAddress);
+            setSelectedLocation({ lat: defaultAddr.lat, lng: defaultAddr.lng });
+            return;
+          }
+        }
+
+        // If no saved addresses found, fallback to detected location if available
+        if (isMounted && detectedAddress && detectedLocation) {
+          setSelectedAddressId('detected');
+          isSelectedFromSuggestionRef.current = true;
+          setPickupAddress(detectedAddress);
+          setSelectedLocation(detectedLocation);
+        }
+      } catch (err) {
+        console.warn('[SchedulePickup] Profile addresses query non-critical error:', err.message);
+      }
+    };
+
+    loadProfileAddresses();
+    return () => {
+      isMounted = false;
+    };
+  }, [detectedAddress, detectedLocation]);
 
   // Close suggestions on outside click
   useEffect(() => {
@@ -73,12 +114,13 @@ const SchedulePickup = () => {
   }, [pickupAddress]);
 
   const [deliveryEstimate, setDeliveryEstimate] = useState({
-    distanceKm: 0,
-    deliveryCharge: 20,
-    rawDeliveryCharge: 20,
+    distanceKm: null,
+    deliveryCharge: null,
+    rawDeliveryCharge: null,
     extraKm: 0,
     isFreeDelivery: false,
     isDistant: false,
+    unverified: true,
     loading: false,
   });
 
@@ -86,9 +128,27 @@ const SchedulePickup = () => {
     isSelectedFromSuggestionRef.current = true;
     setPickupAddress(suggestion.displayName);
     setSelectedLocation({ lat: suggestion.lat, lng: suggestion.lng });
+    setSelectedAddressId('custom');
     setPendingOrder(null);
     setSuggestions([]);
     setShowSuggestions(false);
+  };
+
+  const handleSelectSavedAddress = (addr) => {
+    setSelectedAddressId(addr._id);
+    isSelectedFromSuggestionRef.current = true;
+    setPickupAddress(addr.fullAddress);
+    setSelectedLocation({ lat: addr.lat, lng: addr.lng });
+    setPendingOrder(null);
+    setSuggestions([]);
+    setShowSuggestions(false);
+  };
+
+  const handleSelectCustomAddress = () => {
+    setSelectedAddressId('custom');
+    setPickupAddress('');
+    setSelectedLocation(null);
+    setPendingOrder(null);
   };
 
   useEffect(() => {
@@ -131,46 +191,63 @@ const SchedulePickup = () => {
 
     const fetchEstimate = async () => {
       try {
-        let query = `itemsSubtotal=${subtotal}`;
-        if (selectedLocation && typeof selectedLocation.lat === 'number') {
-          query += `&lat=${selectedLocation.lat}&lng=${selectedLocation.lng}`;
-        } else if (pickupAddress && pickupAddress.trim().length >= 3) {
-          query += `&address=${encodeURIComponent(pickupAddress.trim())}`;
-        } else {
+        if (!selectedLocation || typeof selectedLocation.lat !== 'number' || typeof selectedLocation.lng !== 'number') {
           if (active) {
-            setDeliveryEstimate(prev => ({
-              ...prev,
-              distanceKm: 0,
-              deliveryCharge: subtotal > 349 ? 0 : 20,
-              rawDeliveryCharge: 20,
+            setDeliveryEstimate({
+              distanceKm: null,
+              deliveryCharge: null,
+              rawDeliveryCharge: null,
               extraKm: 0,
-              isFreeDelivery: subtotal > 349,
+              isFreeDelivery: false,
               isDistant: false,
-            }));
+              unverified: true,
+              loading: false,
+            });
           }
           return;
         }
 
+        if (active) {
+          setDeliveryEstimate(prev => ({ ...prev, loading: true }));
+        }
+
+        const query = `itemsSubtotal=${subtotal}&lat=${selectedLocation.lat}&lng=${selectedLocation.lng}`;
         const res = await api.get(`/orders/estimate-delivery?${query}`);
         if (active && res.data) {
-          setDeliveryEstimate({
-            distanceKm: res.data.distanceKm,
-            deliveryCharge: res.data.deliveryCharge,
-            rawDeliveryCharge: res.data.rawDeliveryCharge,
-            extraKm: res.data.extraKm,
-            isFreeDelivery: res.data.isFreeDelivery,
-            isDistant: res.data.isDistant,
-            loading: false,
-          });
+          if (res.data.unverified) {
+            setDeliveryEstimate({
+              distanceKm: null,
+              deliveryCharge: null,
+              rawDeliveryCharge: null,
+              extraKm: 0,
+              isFreeDelivery: false,
+              isDistant: false,
+              unverified: true,
+              loading: false,
+            });
+          } else {
+            setDeliveryEstimate({
+              distanceKm: res.data.distanceKm,
+              deliveryCharge: res.data.deliveryCharge,
+              rawDeliveryCharge: res.data.rawDeliveryCharge,
+              extraKm: res.data.extraKm,
+              isFreeDelivery: res.data.isFreeDelivery,
+              isDistant: res.data.isDistant,
+              unverified: false,
+              loading: false,
+            });
+          }
         }
       } catch (err) {
         console.warn('Failed to fetch delivery estimate:', err);
         if (active) {
-          const defaultCharge = subtotal > 349 ? 0 : 20;
           setDeliveryEstimate(prev => ({
             ...prev,
-            deliveryCharge: defaultCharge,
-            isFreeDelivery: subtotal > 349,
+            distanceKm: null,
+            deliveryCharge: null,
+            rawDeliveryCharge: null,
+            unverified: true,
+            loading: false,
           }));
         }
       }
@@ -181,11 +258,11 @@ const SchedulePickup = () => {
       active = false;
       clearTimeout(timer);
     };
-  }, [selectedLocation, pickupAddress, subtotal]);
+  }, [selectedLocation, subtotal]);
 
   const expressFee = isExpress ? 150 : 0;
   const deliveryFee = deliveryEstimate.deliveryCharge;
-  const grandTotal = subtotal + expressFee + deliveryFee;
+  const grandTotal = deliveryFee !== null ? subtotal + expressFee + deliveryFee : null;
 
   // ─── Trigger Razorpay Checkout for an Order Record ──────────────────────────
   const launchRazorpayCheckout = async (order) => {
@@ -275,6 +352,10 @@ const SchedulePickup = () => {
     }
     if (!pickupAddress.trim()) {
       setError('Please provide a pickup address.');
+      return;
+    }
+    if (!selectedLocation || typeof selectedLocation.lat !== 'number' || typeof selectedLocation.lng !== 'number') {
+      setError('Please select an address from the suggestions dropdown to calculate accurate delivery distance.');
       return;
     }
     if (!pickupDate) {
@@ -638,15 +719,63 @@ const SchedulePickup = () => {
             <h2 className="text-lg font-bold text-theme-primary font-poppins">2. Pickup Details</h2>
             
             <div className="space-y-4">
+              {/* Saved Addresses Chips */}
+              {savedAddresses.length > 0 && (
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-bold text-theme-primary uppercase tracking-wider">
+                      Saved Addresses
+                    </label>
+                    <Link to="/profile" className="text-[11px] text-theme-accent hover:underline font-semibold">
+                      Manage Addresses
+                    </Link>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {savedAddresses.map((addr) => (
+                      <button
+                        key={addr._id}
+                        type="button"
+                        onClick={() => handleSelectSavedAddress(addr)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center space-x-1.5 transition-all ${
+                          selectedAddressId === addr._id
+                            ? 'bg-theme-accent text-[var(--accent-text)] shadow-sm'
+                            : 'bg-theme-elevated text-theme-muted hover:text-theme-primary border border-theme'
+                        }`}
+                      >
+                        <Bookmark className="h-3.5 w-3.5" />
+                        <span>{addr.label || 'Home'}</span>
+                        {addr.isDefault && <span className="text-[10px] opacity-80">(Default)</span>}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={handleSelectCustomAddress}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center space-x-1 transition-all ${
+                        selectedAddressId === 'custom'
+                          ? 'bg-theme-accent text-[var(--accent-text)]'
+                          : 'bg-theme-elevated text-theme-muted hover:text-theme-primary border border-theme'
+                      }`}
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      <span>Other Address</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
               <div ref={dropdownRef} className="relative">
                 <div className="flex items-center justify-between mb-1.5">
                   <label className="block text-xs font-bold text-theme-primary uppercase tracking-wider">
-                    Pickup Address
+                    Pickup Address <span className="text-red-500">*</span>
                   </label>
-                  {selectedLocation && (
+                  {selectedLocation && typeof selectedLocation.lat === 'number' ? (
                     <span className="inline-flex items-center space-x-1 text-[11px] font-bold text-green-500 bg-green-500/10 px-2 py-0.5 rounded-md border border-green-500/20">
                       <Check className="h-3 w-3" />
                       <span>GPS Verified ({selectedLocation.lat.toFixed(4)}, {selectedLocation.lng.toFixed(4)})</span>
+                    </span>
+                  ) : (
+                    <span className="text-[11px] font-medium text-amber-500">
+                      Selection from dropdown required
                     </span>
                   )}
                 </div>
@@ -662,6 +791,7 @@ const SchedulePickup = () => {
                     onChange={(e) => {
                       setPickupAddress(e.target.value);
                       setSelectedLocation(null);
+                      setSelectedAddressId('custom');
                       setPendingOrder(null);
                     }}
                     onFocus={() => {
@@ -745,14 +875,18 @@ const SchedulePickup = () => {
               <div className="flex justify-between items-baseline">
                 <span>
                   Delivery Charge
-                  {deliveryEstimate.distanceKm > 0 && (
+                  {deliveryEstimate.distanceKm !== null && deliveryEstimate.distanceKm > 0 && (
                     <span className="text-[11px] font-mono text-theme-muted ml-1">
                       ({deliveryEstimate.distanceKm} km)
                     </span>
                   )}:
                 </span>
                 <span>
-                  {deliveryFee === 0 ? (
+                  {deliveryEstimate.loading ? (
+                    <span className="text-theme-muted text-xs animate-pulse">Calculating...</span>
+                  ) : !selectedLocation || deliveryFee === null ? (
+                    <span className="text-amber-500 font-semibold text-xs">Address Required</span>
+                  ) : deliveryFee === 0 ? (
                     <span className="text-green-500 font-bold">
                       FREE {subtotal > 349 && <span className="text-[10px] text-theme-muted font-normal">(Order &gt; ₹349)</span>}
                     </span>
@@ -812,13 +946,22 @@ const SchedulePickup = () => {
             <div className="border-t border-theme pt-4 flex justify-between items-end">
               <div>
                 <span className="text-xs text-theme-muted uppercase font-bold">Total Payable</span>
-                <p className="text-3xl font-black text-theme-primary">₹{grandTotal}</p>
+                <p className="text-3xl font-black text-theme-primary">
+                  {!selectedLocation || deliveryFee === null ? (
+                    <>
+                      ₹{subtotal + expressFee}{' '}
+                      <span className="text-xs font-normal text-theme-muted">(+ delivery)</span>
+                    </>
+                  ) : (
+                    `₹${grandTotal}`
+                  )}
+                </p>
               </div>
             </div>
 
             <button
               onClick={handleSubmit}
-              disabled={loading || cartItems.length === 0}
+              disabled={loading || cartItems.length === 0 || !selectedLocation || deliveryFee === null}
               className="w-full flex justify-center items-center py-3.5 px-4 rounded-2xl shadow-theme-accent text-sm font-bold text-[var(--accent-text)] bg-theme-accent hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 theme-btn-hover space-x-2"
             >
               {loading ? (
@@ -826,10 +969,21 @@ const SchedulePickup = () => {
               ) : (
                 <>
                   <ShieldCheck className="h-4 w-4" />
-                  <span>Confirm &amp; Pay (₹{grandTotal})</span>
+                  <span>
+                    Confirm &amp; Pay {selectedLocation && grandTotal !== null ? `(₹${grandTotal})` : ''}
+                  </span>
                 </>
               )}
             </button>
+
+            {!selectedLocation && (
+              <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-500 text-xs flex items-start space-x-2 animate-in fade-in">
+                <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                <span className="leading-relaxed">
+                  Please select your address from the suggestions dropdown to calculate accurate delivery distance and proceed.
+                </span>
+              </div>
+            )}
 
             <p className="text-[10px] text-theme-muted text-center flex items-center justify-center space-x-1">
               <ShieldCheck className="h-3.5 w-3.5 text-theme-accent" />

@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'r
 import { AnimatePresence } from 'framer-motion';
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
+import { LocationProvider } from './context/LocationContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
@@ -14,9 +15,11 @@ import Services from './pages/customer/Services';
 import SchedulePickup from './pages/customer/SchedulePickup';
 import MyOrders from './pages/customer/MyOrders';
 import TrackOrder from './pages/customer/TrackOrder';
+import Profile from './pages/customer/Profile';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import PartnerDashboard from './pages/partner/PartnerDashboard';
+import PartnerProfile from './pages/partner/PartnerProfile';
 import AdminDashboard from './pages/admin/AdminDashboard';
 
 function AnimatedRoutes() {
@@ -50,12 +53,29 @@ function AnimatedRoutes() {
           } 
         />
 
+        <Route 
+          path="/profile" 
+          element={
+            <ProtectedRoute allowedRoles={['customer', 'admin']}>
+              <PageTransition><Profile /></PageTransition>
+            </ProtectedRoute>
+          } 
+        />
+
         {/* Partner Protected Routes */}
         <Route 
           path="/partner" 
           element={
             <ProtectedRoute allowedRoles={['partner']}>
               <PageTransition><PartnerDashboard /></PageTransition>
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/partner/profile" 
+          element={
+            <ProtectedRoute allowedRoles={['partner']}>
+              <PageTransition><PartnerProfile /></PageTransition>
             </ProtectedRoute>
           } 
         />
@@ -81,15 +101,17 @@ function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <Router>
-          <div className="flex flex-col min-h-screen bg-theme-bg text-theme-primary transition-colors duration-200">
-            <Navbar />
-            <main className="flex-grow flex flex-col">
-              <AnimatedRoutes />
-            </main>
-            <Footer />
-          </div>
-        </Router>
+        <LocationProvider>
+          <Router>
+            <div className="flex flex-col min-h-screen bg-theme-bg text-theme-primary transition-colors duration-200">
+              <Navbar />
+              <main className="flex-grow flex flex-col">
+                <AnimatedRoutes />
+              </main>
+              <Footer />
+            </div>
+          </Router>
+        </LocationProvider>
       </AuthProvider>
     </ThemeProvider>
   );
