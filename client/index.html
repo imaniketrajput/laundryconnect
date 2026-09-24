@@ -1,11 +1,27 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="midnight">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="LaundryConnect is a smart laundry pickup and delivery platform. Secure, fast, and algorithm-optimized fabric care at your doorstep." />
     <title>LaundryConnect | Smart Laundry Pickup &amp; Delivery</title>
+
+    <!-- Synchronous theme boot to eliminate dark/light theme flash on frame 0 -->
+    <script>
+      try {
+        const savedTheme = localStorage.getItem('laundry_theme');
+        if (savedTheme) document.documentElement.dataset.theme = savedTheme;
+      } catch (e) {}
+    </script>
+
+    <!-- Google Fonts Preconnect & High-Priority Loading -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300..800;1,300..800&family=Poppins:ital,wght@0,400;0,600;0,700;0,800;0,900&display=swap" />
+
+    <!-- Hero Image High-Priority Preload (prevents zero-height layout shift) -->
+    <link rel="preload" as="image" href="/hero-delivery.webp" type="image/webp" fetchpriority="high" />
   </head>
   <body class="selection:bg-amber-500/30">
     <div id="root"></div>

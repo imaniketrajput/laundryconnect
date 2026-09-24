@@ -331,12 +331,14 @@ html[data-theme="sunrise"] {
 /* ── Hero Image Frame (Theme-Native Treatment) ───────────────────────────── */
 .hero-image-frame {
   position: relative;
+  aspect-ratio: 1 / 1;
   transition: transform 300ms ease, box-shadow 300ms ease, border-color 300ms ease, border-radius 300ms ease;
 }
 
 .hero-image-frame .hero-image {
   width: 100%;
-  height: auto;
+  height: 100%;
+  aspect-ratio: 1 / 1;
   display: block;
   object-fit: cover;
   transition: border-radius 300ms ease;

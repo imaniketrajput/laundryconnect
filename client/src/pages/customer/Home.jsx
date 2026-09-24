@@ -38,7 +38,7 @@ const sectionAnimation = {
 
 const Home = () => {
   const { theme } = useTheme();
-  const [services, setServices] = useState([]);
+  const [services, setServices] = useState(FALLBACK_SERVICES);
 
   const heroImageSrc =
     theme === 'aurora'
@@ -87,7 +87,7 @@ const Home = () => {
               garments, clean them using eco-safe products, and return them fresh to your door.
             </p>
 
-            <div className="flex flex-col sm:flex-row gap-4 pt-2">
+            <div className="flex flex-col sm:flex-row gap-4 pt-2 min-h-[56px]">
               <Link
                 to="/schedule"
                 className="flex items-center justify-center space-x-2 font-bold px-8 py-4 rounded-2xl shadow-theme-accent transition-all duration-200 theme-btn-hover"
@@ -126,12 +126,17 @@ const Home = () => {
 
           {/* Right — hero photo with theme-native frame treatment */}
           <div className="relative flex justify-center lg:justify-end">
-            <div className="hero-image-frame w-full max-w-lg">
+            <div className="hero-image-frame w-full max-w-lg aspect-square">
               <img
                 key={theme}
                 src={heroImageSrc}
                 alt="LaundryConnect delivery partner handing fresh clothes to a customer"
-                className="hero-image"
+                className="hero-image aspect-square"
+                width="512"
+                height="512"
+                fetchPriority="high"
+                loading="eager"
+                decoding="async"
               />
             </div>
           </div>

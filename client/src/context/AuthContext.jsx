@@ -34,19 +34,25 @@ export const isProfileComplete = (userData) => {
 };
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState(() => {
+    try {
+      const storedUser = localStorage.getItem('user');
+      const storedToken = localStorage.getItem('token');
+      if (storedUser && storedToken) {
+        return JSON.parse(storedUser);
+      }
+    } catch (e) {
+      // ignore parse error
+    }
+    return null;
+  });
+  const [loading, setLoading] = useState(false);
 
   // Restore session on mount and sync latest profile data
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
     const storedToken = localStorage.getItem('token');
     if (storedUser && storedToken) {
-      try {
-        setUser(JSON.parse(storedUser));
-      } catch (e) {
-        // ignore parse error
-      }
 
       // Background sync to fetch fresh profile data (savedAddresses, profilePhoto, partner details)
       api.get('/users/profile')
