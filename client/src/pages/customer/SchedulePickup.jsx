@@ -264,17 +264,42 @@ const SchedulePickup = () => {
   const deliveryFee = deliveryEstimate.deliveryCharge;
   const grandTotal = deliveryFee !== null ? subtotal + expressFee + deliveryFee : null;
 
+  // ─── Helper to dynamically load Razorpay SDK on-demand ─────────────────────
+  const loadRazorpayScript = () => {
+    return new Promise((resolve, reject) => {
+      if (typeof window !== 'undefined' && window.Razorpay) {
+        return resolve(true);
+      }
+      const existingScript = document.querySelector('script[src="https://checkout.razorpay.com/v1/checkout.js"]');
+      if (existingScript) {
+        if (window.Razorpay) return resolve(true);
+        existingScript.addEventListener('load', () => resolve(true));
+        existingScript.addEventListener('error', () => reject(new Error('Failed to load Razorpay SDK.')));
+        return;
+      }
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.async = true;
+      script.onload = () => resolve(true);
+      script.onerror = () => reject(new Error('Failed to load Razorpay checkout script. Please check your internet connection.'));
+      document.body.appendChild(script);
+    });
+  };
+
   // ─── Trigger Razorpay Checkout for an Order Record ──────────────────────────
   const launchRazorpayCheckout = async (order) => {
-    if (typeof window.Razorpay === 'undefined') {
-      setError('Razorpay SDK failed to load. Please check your internet connection or reload the page.');
-      setLoading(false);
-      return;
-    }
-
     try {
       setLoading(true);
       setError('');
+
+      // Dynamically load Razorpay SDK on-demand right before checkout
+      if (typeof window.Razorpay === 'undefined') {
+        await loadRazorpayScript();
+      }
+
+      if (typeof window.Razorpay === 'undefined') {
+        throw new Error('Razorpay SDK failed to load. Please check your internet connection or reload the page.');
+      }
 
       const res = await api.post(`/payments/${order._id}/razorpay/create-order`);
       const { orderId, amount, currency, keyId } = res.data;

@@ -39,10 +39,29 @@ const PayNowModal = ({ order, onClose, onSuccess }) => {
   const handlePay = async () => {
     setError('');
 
-    // Check if Razorpay script is loaded in browser
+    // Dynamically load Razorpay script on-demand if not already loaded
     if (typeof window.Razorpay === 'undefined') {
-      setError('Razorpay SDK failed to load. Please verify your connection or reload the page.');
-      return;
+      try {
+        await new Promise((resolve, reject) => {
+          if (typeof window !== 'undefined' && window.Razorpay) return resolve(true);
+          const existingScript = document.querySelector('script[src="https://checkout.razorpay.com/v1/checkout.js"]');
+          if (existingScript) {
+            if (window.Razorpay) return resolve(true);
+            existingScript.addEventListener('load', () => resolve(true));
+            existingScript.addEventListener('error', () => reject(new Error('Failed to load Razorpay SDK.')));
+            return;
+          }
+          const script = document.createElement('script');
+          script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+          script.async = true;
+          script.onload = () => resolve(true);
+          script.onerror = () => reject(new Error('Failed to load Razorpay SDK.'));
+          document.body.appendChild(script);
+        });
+      } catch {
+        setError('Razorpay SDK failed to load. Please verify your connection or reload the page.');
+        return;
+      }
     }
 
     setSubmitting(true);
