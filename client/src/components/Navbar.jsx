@@ -117,11 +117,11 @@ const Navbar = () => {
                   ) : (
                     <User className="h-4 w-4 text-theme-muted group-hover:text-theme-accent transition-colors" />
                   )}
-                  <span className="text-xs font-bold font-poppins group-hover:text-theme-accent transition-colors flex items-center gap-1">
-                    <span>{user.name}</span>
+                  <span className="text-xs font-bold font-poppins group-hover:text-theme-accent transition-colors flex items-center gap-1 min-w-0">
+                    <span className="truncate max-w-[100px] sm:max-w-[120px]" title={user.name}>{user.name}</span>
                     {isProfileComplete && (
-                      <span title="Profile Complete" className="inline-flex items-center text-blue-500">
-                        <BadgeCheck className="w-3.5 h-3.5 fill-blue-500 text-white shrink-0" />
+                      <span title="Profile Complete" className="inline-flex items-center text-blue-500 shrink-0">
+                        <BadgeCheck className="w-3.5 h-3.5 fill-blue-500 text-white" />
                       </span>
                     )}
                   </span>
@@ -214,16 +214,16 @@ const Navbar = () => {
                 ) : (
                   <User className="h-5 w-5 text-theme-muted group-hover:text-theme-accent transition-colors" />
                 )}
-                <div>
-                  <div className="text-sm font-bold group-hover:text-theme-accent transition-colors flex items-center gap-1.5">
-                    <span>{user.name}</span>
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-bold group-hover:text-theme-accent transition-colors flex items-center gap-1.5 min-w-0">
+                    <span className="truncate max-w-[180px] sm:max-w-[240px]" title={user.name}>{user.name}</span>
                     {isProfileComplete && (
-                      <span title="Profile Complete" className="inline-flex items-center text-blue-500">
-                        <BadgeCheck className="w-4 h-4 fill-blue-500 text-white shrink-0" />
+                      <span title="Profile Complete" className="inline-flex items-center text-blue-500 shrink-0">
+                        <BadgeCheck className="w-4 h-4 fill-blue-500 text-white" />
                       </span>
                     )}
                   </div>
-                  <div className="text-xs text-theme-muted capitalize">{user.role} &bull; View Profile</div>
+                  <div className="text-xs text-theme-muted capitalize truncate">{user.role} &bull; View Profile</div>
                 </div>
               </Link>
               {dashboard && (

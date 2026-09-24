@@ -605,6 +605,24 @@ Because the browser W3C Geolocation API cannot cryptographically attest that coo
 
 ## 13. Changelog
 
+### 2026-09-24 (Layout Overflow, SPA Rewrite & Scroll Performance Fixes)
+- **LAYOUT OVERFLOW PREVENTION (Profile, PartnerProfile, Navbar)**:
+  - *Name & Badge Cluster Responsive Flex-Wrap*: Wrapped name + `BadgeCheck` + role tag + vehicle pill in responsive `flex-wrap gap-2` / `gap-3` containers with `min-w-0` across [`Profile.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/pages/customer/Profile.jsx), [`PartnerProfile.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/pages/partner/PartnerProfile.jsx), and [`Navbar.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/components/Navbar.jsx).
+  - *Name Truncation*: Applied `truncate` with max-width boundaries and native browser `title` tooltips on `<h1>` headers and navigation pills. Verified zero overlap across short ("Sam"), medium ("Aniket Singh Rajput"), and long ("Aniketsinghyadavrajputkumarverma") names on mobile (375px), tablet (768px), and desktop (1440px).
+  - *Partner Base Location Card Header*: Refactored header layout with `flex-col sm:flex-row sm:items-center justify-between gap-3`, giving the "Change" button explicit `shrink-0 min-w-[84px] self-start sm:self-auto` and the description container `min-w-0 flex-1 break-words`, permanently preventing button squishing or overlapping regardless of viewport width.
+- **SPA 404 REWRITE RULE FOR RENDER DEPLOYMENTS**:
+  - Added [`client/public/_redirects`](file:///c:/Users/Pratik/laundryconnect/client/public/_redirects) with `/*    /index.html   200`. Vite automatically outputs `client/dist/_redirects` on build, allowing Render Static Site hosting to rewrite all deep URLs (`/profile`, `/track-order`, `/schedule`, etc.) to `index.html` with HTTP 200 rather than throwing 404 on refresh.
+- **INITIAL SCROLL STUTTER ROOT CAUSE RESOLUTION (Hardware Compositor Layer Promotion)**:
+  - *Root Cause Diagnosis*: Investigated the 4 potential causes. Confirmed Cause 1: Framer Motion scroll reveals (`whileInView`) in [`Home.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/pages/customer/Home.jsx) triggered synchronous style/paint recalculation on the main thread during the very first scroll gesture because the 6 card-grid sections lacked compositor layer promotion.
+  - *Fix Applied*: Added `style={{ willChange: 'transform, opacity' }}` to `sectionAnimation` and Tailwind's `will-change-transform transform-gpu` utility classes to each `motion.section` in [`Home.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/pages/customer/Home.jsx), promoting sections to dedicated GPU compositor layers on initial page paint so scroll animations execute directly on the GPU compositor thread without stalling main-thread scroll dispatching.
+- *Files Touched*:
+  - `client/src/pages/customer/Profile.jsx`
+  - `client/src/pages/partner/PartnerProfile.jsx`
+  - `client/src/components/Navbar.jsx`
+  - `client/public/_redirects`
+  - `client/src/pages/customer/Home.jsx`
+  - `ARCHITECTURE.md`
+
 ### 2026-09-24 (Phase 7B)
 - **CAMERA CAPTURE FOR PROFILE PHOTO & VERIFIED BADGE AT 100% COMPLETION (Phase 7B)**:
   - *Dual Profile Photo Upload (Native Camera + File Picker)*:

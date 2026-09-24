@@ -512,20 +512,25 @@ const Profile = () => {
           </div>
 
           {/* User Details & Completeness */}
-          <div className="flex-grow text-center sm:text-left space-y-2">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <div className="flex items-center justify-center sm:justify-start space-x-2">
-                  <h1 className="text-2xl font-black text-theme-primary font-poppins">{profile?.name}</h1>
+          <div className="flex-grow min-w-0 text-center sm:text-left space-y-2">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div className="min-w-0 flex flex-col items-center sm:items-start">
+                <div className="flex items-center justify-center sm:justify-start gap-2 flex-wrap max-w-full">
+                  <h1 
+                    className="text-2xl font-black text-theme-primary font-poppins truncate max-w-[200px] xs:max-w-[260px] sm:max-w-[340px] md:max-w-[420px]"
+                    title={profile?.name}
+                  >
+                    {profile?.name}
+                  </h1>
                   {completeness === 100 && (
                     <span title="Profile Complete" className="inline-flex items-center text-blue-500 shrink-0">
                       <BadgeCheck className="w-6 h-6 fill-blue-500 text-white" />
                     </span>
                   )}
                 </div>
-                <p className="text-xs text-theme-muted">{profile?.email}</p>
+                <p className="text-xs text-theme-muted truncate max-w-full">{profile?.email}</p>
               </div>
-              <span className="mt-2 sm:mt-0 self-center sm:self-auto inline-flex items-center px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-theme-accent-light text-theme-accent border border-theme-accent">
+              <span className="shrink-0 self-center sm:self-auto inline-flex items-center px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-theme-accent-light text-theme-accent border border-theme-accent">
                 Customer Account
               </span>
             </div>
@@ -671,9 +676,9 @@ const Profile = () => {
           </form>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-            <div className="bg-theme-elevated p-3.5 rounded-2xl border border-theme">
+            <div className="bg-theme-elevated p-3.5 rounded-2xl border border-theme min-w-0">
               <span className="text-[11px] font-bold text-theme-muted uppercase tracking-wider">Full Name</span>
-              <p className="text-theme-primary font-semibold mt-0.5">{profile?.name || 'Not provided'}</p>
+              <p className="text-theme-primary font-semibold mt-0.5 truncate" title={profile?.name}>{profile?.name || 'Not provided'}</p>
             </div>
 
             <div className="bg-theme-elevated p-3.5 rounded-2xl border border-theme relative">

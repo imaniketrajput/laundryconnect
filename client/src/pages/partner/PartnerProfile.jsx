@@ -478,25 +478,30 @@ const PartnerProfile = () => {
           </div>
 
           {/* Details & Completeness */}
-          <div className="flex-grow text-center sm:text-left space-y-2">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <div className="flex items-center justify-center sm:justify-start space-x-2">
-                  <h1 className="text-2xl font-black text-theme-primary font-poppins">{u?.name}</h1>
+          <div className="flex-grow min-w-0 text-center sm:text-left space-y-2">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div className="min-w-0 flex flex-col items-center sm:items-start">
+                <div className="flex items-center justify-center sm:justify-start gap-2 flex-wrap max-w-full">
+                  <h1 
+                    className="text-2xl font-black text-theme-primary font-poppins truncate max-w-[200px] xs:max-w-[260px] sm:max-w-[340px] md:max-w-[400px]"
+                    title={u?.name}
+                  >
+                    {u?.name}
+                  </h1>
                   {completeness === 100 && (
                     <span title="Profile Complete" className="inline-flex items-center text-blue-500 shrink-0">
                       <BadgeCheck className="w-6 h-6 fill-blue-500 text-white" />
                     </span>
                   )}
                 </div>
-                <p className="text-xs text-theme-muted">{u?.email}</p>
+                <p className="text-xs text-theme-muted truncate max-w-full">{u?.email}</p>
               </div>
-              <div className="mt-2 sm:mt-0 flex items-center space-x-2 self-center sm:self-auto">
-                <span className="inline-flex items-center space-x-1 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-theme-accent-light text-theme-accent border border-theme-accent">
+              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 self-center sm:self-auto shrink-0">
+                <span className="inline-flex items-center space-x-1 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-theme-accent-light text-theme-accent border border-theme-accent shrink-0">
                   <Truck className="h-3 w-3" />
                   <span>Delivery Partner</span>
                 </span>
-                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-theme-elevated text-theme-primary border border-theme">
+                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-theme-elevated text-theme-primary border border-theme shrink-0">
                   {partner?.vehicleType || 'Bike'}
                 </span>
               </div>
@@ -632,9 +637,9 @@ const PartnerProfile = () => {
           </form>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-            <div className="bg-theme-elevated p-3.5 rounded-2xl border border-theme">
+            <div className="bg-theme-elevated p-3.5 rounded-2xl border border-theme min-w-0">
               <span className="text-[11px] font-bold text-theme-muted uppercase tracking-wider">Driver Name</span>
-              <p className="text-theme-primary font-semibold mt-0.5">{u?.name}</p>
+              <p className="text-theme-primary font-semibold mt-0.5 truncate" title={u?.name}>{u?.name}</p>
             </div>
 
             <div className="bg-theme-elevated p-3.5 rounded-2xl border border-theme">
@@ -668,12 +673,12 @@ const PartnerProfile = () => {
         transition={{ delay: 0.2 }}
         className="bg-theme-card border border-theme rounded-3xl p-6 sm:p-7 shadow-theme-sm space-y-5"
       >
-        <div className="flex items-center justify-between border-b border-theme pb-4">
-          <div className="flex items-center space-x-2.5">
-            <Navigation className="h-5 w-5 text-theme-accent" />
-            <div>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-theme pb-4">
+          <div className="flex items-start sm:items-center space-x-2.5 min-w-0 flex-1">
+            <Navigation className="h-5 w-5 text-theme-accent shrink-0 mt-0.5 sm:mt-0" />
+            <div className="min-w-0 flex-1">
               <h2 className="text-lg font-bold text-theme-primary font-poppins">Base Starting Location</h2>
-              <p className="text-xs text-theme-muted">
+              <p className="text-xs text-theme-muted break-words">
                 Pre-fills your position on login for the Admin Fleet View prior to active GPS broadcast
               </p>
             </div>
@@ -681,7 +686,7 @@ const PartnerProfile = () => {
           {!editingBaseLocation ? (
             <button
               onClick={() => setEditingBaseLocation(true)}
-              className="flex items-center space-x-1 text-xs font-bold text-theme-accent bg-theme-accent-light px-3 py-1.5 rounded-xl border border-theme-accent hover:opacity-90"
+              className="flex items-center justify-center space-x-1 text-xs font-bold text-theme-accent bg-theme-accent-light px-3.5 py-1.5 rounded-xl border border-theme-accent hover:opacity-90 shrink-0 self-start sm:self-auto min-w-[84px]"
             >
               <Edit3 className="h-3.5 w-3.5" />
               <span>Change</span>
@@ -696,7 +701,7 @@ const PartnerProfile = () => {
                   lng: partner?.baseLocation?.lng || null,
                 });
               }}
-              className="flex items-center space-x-1 text-xs font-bold text-theme-muted hover:text-theme-primary"
+              className="flex items-center justify-center space-x-1 text-xs font-bold text-theme-muted hover:text-theme-primary shrink-0 self-start sm:self-auto min-w-[72px]"
             >
               <X className="h-4 w-4" />
               <span>Cancel</span>

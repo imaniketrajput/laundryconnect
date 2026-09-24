@@ -33,6 +33,7 @@ const sectionAnimation = {
   whileInView: { opacity: 1, y: 0 },
   viewport: { once: true, amount: 0.15 },
   transition: { duration: 0.5, ease: 'easeOut' },
+  style: { willChange: 'transform, opacity' },
 };
 
 const Home = () => {
@@ -138,7 +139,7 @@ const Home = () => {
       </section>
 
       {/* ── 2. HOW IT WORKS (Scroll Reveal) ─────────────────────────────────── */}
-      <motion.section {...sectionAnimation} className="py-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto text-center">
+      <motion.section {...sectionAnimation} className="py-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto text-center will-change-transform transform-gpu">
         <h2 className="text-3xl font-extrabold text-theme-primary font-poppins tracking-tight">
           How It <span className="text-theme-accent">Works</span>
         </h2>
@@ -195,7 +196,7 @@ const Home = () => {
       </motion.section>
 
       {/* ── 3. SERVICES PREVIEW (Scroll Reveal) ──────────────────────────────── */}
-      <motion.section {...sectionAnimation} className="py-16 bg-theme-secondary border-y border-theme px-4 sm:px-6 lg:px-8">
+      <motion.section {...sectionAnimation} className="py-16 bg-theme-secondary border-y border-theme px-4 sm:px-6 lg:px-8 will-change-transform transform-gpu">
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-col md:flex-row md:items-end justify-between mb-10">
             <div className="text-left">
@@ -254,7 +255,7 @@ const Home = () => {
       </motion.section>
 
       {/* ── 4. ENGINEERED FOR RELIABILITY (Scroll Reveal) ────────────────────── */}
-      <motion.section {...sectionAnimation} className="py-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+      <motion.section {...sectionAnimation} className="py-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto will-change-transform transform-gpu">
         <div className="text-center max-w-3xl mx-auto mb-16">
           <h2 className="text-3xl font-extrabold text-theme-primary font-poppins tracking-tight">
             Engineered for <span className="text-theme-accent">Reliability</span>
@@ -323,7 +324,7 @@ const Home = () => {
       </motion.section>
 
       {/* ── 5. STATS BAR (Scroll Reveal) ────────────────────────────────────── */}
-      <motion.section {...sectionAnimation} className="bg-theme-elevated text-theme-primary py-12 px-4 sm:px-6 lg:px-8 border-y border-theme">
+      <motion.section {...sectionAnimation} className="bg-theme-elevated text-theme-primary py-12 px-4 sm:px-6 lg:px-8 border-y border-theme will-change-transform transform-gpu">
         <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
           {[
             { value: '400,000+', label: 'Happy Customers', icon: Smile },
@@ -343,7 +344,7 @@ const Home = () => {
       </motion.section>
 
       {/* ── 6. TESTIMONIALS (Scroll Reveal) ─────────────────────────────────── */}
-      <motion.section {...sectionAnimation} className="py-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto text-center">
+      <motion.section {...sectionAnimation} className="py-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto text-center will-change-transform transform-gpu">
         <h2 className="text-3xl font-extrabold text-theme-primary font-poppins tracking-tight">
           What Our Customers <span className="text-theme-accent">Say</span>
         </h2>
@@ -411,7 +412,7 @@ const Home = () => {
       </motion.section>
 
       {/* ── 7. CTA BANNER (Scroll Reveal) ───────────────────────────────────── */}
-      <motion.section {...sectionAnimation} className="bg-theme-hero text-theme-hero py-16 px-4 sm:px-6 lg:px-8 text-center relative overflow-hidden border-t border-theme">
+      <motion.section {...sectionAnimation} className="bg-theme-hero text-theme-hero py-16 px-4 sm:px-6 lg:px-8 text-center relative overflow-hidden border-t border-theme will-change-transform transform-gpu">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-white/5 via-transparent to-transparent pointer-events-none" />
         <div className="max-w-4xl mx-auto space-y-6 relative z-10">
           <h2 className="text-3xl sm:text-4xl font-extrabold font-poppins leading-tight text-theme-hero">
