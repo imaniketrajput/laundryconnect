@@ -345,7 +345,7 @@ exports.sendOrderConfirmationEmail = async (order, user) => {
                 <td align="right" style="padding-top: 10px; color: #ffffff; font-size: 13px; font-weight: 600;">₹${populatedOrder.itemsSubtotal ?? populatedOrder.totalAmount}</td>
               </tr>
               <tr>
-                <td style="padding-top: 6px; color: #94a3b8; font-size: 13px;">Delivery Charge</td>
+                <td style="padding-top: 6px; color: #94a3b8; font-size: 13px;">Delivery Charge${populatedOrder.deliveryDistanceKm ? ' (' + populatedOrder.deliveryDistanceKm + ' km)' : ''}</td>
                 <td align="right" style="padding-top: 6px; color: #ffffff; font-size: 13px; font-weight: 600;">${populatedOrder.deliveryCharge ? '₹' + populatedOrder.deliveryCharge : 'FREE'}</td>
               </tr>
               ${populatedOrder.isExpress ? `
@@ -477,7 +477,7 @@ exports.sendPaymentReceiptEmail = async (order, user, invoice, pdfBuffer) => {
                 <td align="right" style="color: #ffffff; font-size: 13px; font-weight: 600; padding-top: 10px;">₹${populatedOrder.itemsSubtotal ?? populatedOrder.totalAmount}</td>
               </tr>
               <tr>
-                <td style="color: #94a3b8; font-size: 12px; padding-top: 6px;">Delivery Charge</td>
+                <td style="color: #94a3b8; font-size: 12px; padding-top: 6px;">Delivery Charge${populatedOrder.deliveryDistanceKm ? ' (' + populatedOrder.deliveryDistanceKm + ' km)' : ''}</td>
                 <td align="right" style="color: #ffffff; font-size: 13px; font-weight: 600; padding-top: 6px;">${populatedOrder.deliveryCharge ? '₹' + populatedOrder.deliveryCharge : 'FREE'}</td>
               </tr>
               ${populatedOrder.isExpress ? `

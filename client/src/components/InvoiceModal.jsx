@@ -202,7 +202,9 @@ const InvoiceModal = ({ orderId, onClose }) => {
                       </td>
                     </tr>
                     <tr className="bg-theme-elevated/40 text-theme-muted">
-                      <td colSpan={3} className="py-2.5 px-4 font-semibold">Delivery Charge</td>
+                      <td colSpan={3} className="py-2.5 px-4 font-semibold">
+                        Delivery Charge{invoice.deliveryDistanceKm ? ` (${invoice.deliveryDistanceKm} km)` : ''}
+                      </td>
                       <td className="py-2.5 px-4 text-right font-bold text-theme-primary">
                         {invoice.deliveryCharge ? `₹${invoice.deliveryCharge.toFixed(2)}` : 'FREE'}
                       </td>

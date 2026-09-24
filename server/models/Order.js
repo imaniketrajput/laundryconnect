@@ -22,6 +22,10 @@ const orderSchema = new mongoose.Schema(
             },
         ],
         pickupAddress: {type: String, required: true},
+        pickupLocation: {
+            lat: { type: Number },
+            lng: { type: Number },
+        },
         pickupDate: {type: String, required: true},
         pickupSlot: {type: mongoose.Schema.Types.ObjectId, ref: "Slot"},
         isExpress: {type: Boolean, default: false},
@@ -43,6 +47,7 @@ const orderSchema = new mongoose.Schema(
         itemsSubtotal: { type: Number, required: true },
         deliveryCharge: { type: Number, required: true, default: 0 },
         expressFee: { type: Number, required: true, default: 0 },
+        deliveryDistanceKm: { type: Number, default: 0 },
         totalAmount: { type: Number, required: true },
         
         paymentStatus: { type: String, enum: ["Pending", "Paid", "Failed"], default: "Pending" },

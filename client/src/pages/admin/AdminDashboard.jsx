@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { STATUS_COLORS } from '../customer/MyOrders';
 import { DashboardTableSkeleton } from '../../components/Skeleton';
+import AdminFleetMap from '../../components/AdminFleetMap';
 
 const ALL_STATUSES = ['Placed','PickedUp','Washing','Ready','OutForDelivery','Delivered','Cancelled'];
 
@@ -180,6 +181,7 @@ const AdminDashboard = () => {
       <div className="flex border-b border-theme overflow-x-auto gap-2">
         {[
           { id: 'queue', label: 'Order Queue' },
+          { id: 'fleet', label: 'Live Fleet Map' },
           { id: 'partners', label: 'Partner Management' },
           { id: 'services', label: 'Services Catalogue' },
           { id: 'slots', label: 'Slot Booking' }
@@ -271,6 +273,11 @@ const AdminDashboard = () => {
                 </div>
               )}
             </div>
+          )}
+
+          {/* Live Fleet Overview Map Tab */}
+          {activeTab === 'fleet' && (
+            <AdminFleetMap />
           )}
 
           {/* Delivery Partners Tab */}

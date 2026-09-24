@@ -60,6 +60,7 @@ const buildInvoiceData = (order) => {
   const itemsSubtotal = order.itemsSubtotal !== undefined ? order.itemsSubtotal : order.totalAmount;
   const deliveryCharge = order.deliveryCharge !== undefined ? order.deliveryCharge : 0;
   const expressFee = order.expressFee !== undefined ? order.expressFee : (order.isExpress ? 150 : 0);
+  const deliveryDistanceKm = order.deliveryDistanceKm !== undefined ? order.deliveryDistanceKm : null;
   const totalAmount = order.totalAmount;
 
   return {
@@ -90,6 +91,7 @@ const buildInvoiceData = (order) => {
     itemsSubtotal,
     deliveryCharge,
     expressFee,
+    deliveryDistanceKm,
     totalAmount,
     taxNote: "All prices are inclusive of applicable taxes. Taxes are not separately itemized.",
     termsNote: "Thank you for choosing LaundryConnect. This is a computer-generated tax invoice and requires no physical signature.",
@@ -207,7 +209,8 @@ const generateInvoicePdf = (order) => {
       doc.fillColor(primaryColor).text(`₹${data.itemsSubtotal.toFixed(2)}`, valX, currentY, { align: "right", width: valWidth });
 
       currentY += 16;
-      doc.fillColor(textMuted).text("Delivery Charge:", summaryX, currentY);
+      const deliveryLabel = data.deliveryDistanceKm ? `Delivery Charge (${data.deliveryDistanceKm} km):` : "Delivery Charge:";
+      doc.fillColor(textMuted).text(deliveryLabel, summaryX, currentY);
       doc.fillColor(primaryColor).text(data.deliveryCharge > 0 ? `₹${data.deliveryCharge.toFixed(2)}` : "FREE", valX, currentY, { align: "right", width: valWidth });
 
       if (data.isExpress) {

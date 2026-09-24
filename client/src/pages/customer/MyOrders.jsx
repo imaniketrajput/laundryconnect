@@ -170,7 +170,7 @@ const PayNowModal = ({ order, onClose, onSuccess }) => {
                 <span className="font-semibold text-theme-primary">₹{order.itemsSubtotal ?? order.totalAmount}</span>
               </div>
               <div className="flex justify-between">
-                <span>Delivery Charge:</span>
+                <span>Delivery Charge{order.deliveryDistanceKm ? ` (${order.deliveryDistanceKm} km)` : ''}:</span>
                 <span className="font-semibold text-theme-primary">
                   {order.deliveryCharge ? `₹${order.deliveryCharge}` : 'FREE'}
                 </span>
@@ -510,7 +510,7 @@ const MyOrders = () => {
               <div className="bg-theme-elevated/70 rounded-2xl p-3.5 border border-theme flex flex-wrap items-center justify-between gap-3 text-xs">
                 <div className="flex flex-wrap items-center gap-4 text-theme-muted">
                   <span>Items Subtotal: <strong className="text-theme-primary">₹{order.itemsSubtotal ?? order.totalAmount}</strong></span>
-                  <span>Delivery: <strong className="text-theme-primary">{order.deliveryCharge ? `₹${order.deliveryCharge}` : 'FREE'}</strong></span>
+                  <span>Delivery{order.deliveryDistanceKm ? ` (${order.deliveryDistanceKm} km)` : ''}: <strong className="text-theme-primary">{order.deliveryCharge ? `₹${order.deliveryCharge}` : 'FREE'}</strong></span>
                   {order.isExpress && (
                     <span className="text-theme-accent font-semibold">⚡ Express Fee: +₹{order.expressFee || 150}</span>
                   )}

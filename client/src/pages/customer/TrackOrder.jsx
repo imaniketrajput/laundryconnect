@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import socket from "../../api/socket";
 import api from '../../api/axios';
 import StatusTimeline from '../../components/StatusTimeline';
+import OrderLiveMap from '../../components/OrderLiveMap';
 import { TimelineSkeleton } from '../../components/Skeleton';
 import { Search, Sparkles, AlertCircle, Calendar, MapPin } from 'lucide-react';
 
@@ -13,6 +14,8 @@ const TrackOrder = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [liveStatus, setLiveStatus] = useState(null);
+  const [livePartnerLocation, setLivePartnerLocation] = useState(null);
+  const [partnerLastUpdated, setPartnerLastUpdated] = useState(null);
   const queryId = searchParams.get('id');
 
   useEffect(() => {
@@ -21,12 +24,6 @@ const TrackOrder = () => {
       trackOrder(queryId);
     }
   }, [queryId]);
-
-  useEffect(() => {
-    return () => {
-      socket.disconnect();
-    };
-  }, []);
 
   useEffect(() => {
     const handleStatusUpdate = (data) => {
@@ -47,10 +44,19 @@ const TrackOrder = () => {
       }
     };
 
+    const handlePartnerLocation = (data) => {
+      if (data && typeof data.lat === 'number' && typeof data.lng === 'number') {
+        setLivePartnerLocation({ lat: data.lat, lng: data.lng });
+        setPartnerLastUpdated(data.timestamp || new Date());
+      }
+    };
+
     socket.on("orderStatusUpdate", handleStatusUpdate);
+    socket.on("partnerLocation", handlePartnerLocation);
 
     return () => {
       socket.off("orderStatusUpdate", handleStatusUpdate);
+      socket.off("partnerLocation", handlePartnerLocation);
     };
   }, [orderId, queryId]);
 
@@ -68,6 +74,9 @@ const TrackOrder = () => {
     try {
       const response = await api.get(`/orders/${id}`);
       setOrder(response.data);
+      if (response.data.partnerLocation) {
+        setLivePartnerLocation(response.data.partnerLocation);
+      }
       setSearchParams({ id });
 
       socket.connect();
@@ -169,6 +178,18 @@ const TrackOrder = () => {
             <StatusTimeline currentStatus={order.currentStatus} statusHistory={order.statusHistory} />
           </div>
 
+          {/* Live Delivery Partner Map */}
+          <div>
+            <OrderLiveMap
+              pickupLocation={order.pickupLocation}
+              partnerLocation={livePartnerLocation || order.partnerLocation}
+              pickupAddress={order.pickupAddress}
+              currentStatus={order.currentStatus}
+              partnerVehicleType={order.partnerVehicleType || 'Delivery Partner'}
+              lastUpdated={partnerLastUpdated}
+            />
+          </div>
+
           {/* Order Details Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4 border-t border-theme">
             <div>
@@ -211,7 +232,7 @@ const TrackOrder = () => {
                 <span className="font-bold text-theme-primary text-sm mt-0.5 block">₹{order.itemsSubtotal ?? order.totalAmount}</span>
               </div>
               <div className="bg-theme-card p-3 rounded-xl border border-theme">
-                <span className="text-theme-muted block">Delivery Fee</span>
+                <span className="text-theme-muted block">Delivery Fee{order.deliveryDistanceKm ? ` (${order.deliveryDistanceKm} km)` : ''}</span>
                 <span className="font-bold text-theme-primary text-sm mt-0.5 block">{order.deliveryCharge ? `₹${order.deliveryCharge}` : 'FREE'}</span>
               </div>
               <div className="bg-theme-card p-3 rounded-xl border border-theme">

@@ -143,7 +143,8 @@ The central entity modeling garment logistics, pricing breakdown, and payment st
 - `currentStatus` (String, Enum: `["Placed", "PickedUp", "Washing", "Ready", "OutForDelivery", "Delivered", "Cancelled"]`, Default: `"Placed"`).
 - `statusHistory` (Array of `{ status, timestamp }`): Complete chronological audit log.
 - `itemsSubtotal` (Number, Required): Sum of `pricePerUnit * quantity` across services.
-- `deliveryCharge` (Number, Required, Default: 0): ₹49 standard charge; free if `itemsSubtotal > 349`.
+- `deliveryCharge` (Number, Required, Default: 0): Authoritative distance-tiered fee; free if `itemsSubtotal > 349`.
+- `deliveryDistanceKm` (Number, Default: 0): Computed spherical distance from central facility hub in kilometers.
 - `expressFee` (Number, Required, Default: 0): ₹150 surcharge when `isExpress === true`.
 - `totalAmount` (Number, Required): Authoritative total (`itemsSubtotal + deliveryCharge + expressFee`).
 - `paymentStatus` (String, Enum: `["Pending", "Paid", "Failed"]`, Default: `"Pending"`).
@@ -257,9 +258,12 @@ LaundryConnect integrates four core Data Structures and Algorithms into producti
 ### 7.1 Authoritative Pricing Model
 All calculations are performed exclusively on the server in [`orderController.js`](file:///c:/Users/Pratik/laundryconnect/server/controllers/orderController.js) and can never be overridden by client-sent values:
 1. $\text{ItemsSubtotal} = \sum (\text{service.pricePerUnit} \times \text{quantity})$.
-2. $\text{DeliveryCharge} = \begin{cases} 0 & \text{if } \text{ItemsSubtotal} > 349 \\ 49 & \text{otherwise} \end{cases}$.
-3. $\text{ExpressFee} = \begin{cases} 150 & \text{if } \text{isExpress} = \text{true} \\ 0 & \text{otherwise} \end{cases}$.
-4. $\text{TotalAmount} = \text{ItemsSubtotal} + \text{DeliveryCharge} + \text{ExpressFee}$.
+2. $\text{DistanceKm} = \text{Haversine}(\text{HUB}, \text{PickupLocation})$.
+3. $\text{ExtraKm} = \max(0, \lceil \text{DistanceKm} - \text{BASE\_INCLUDED\_KM} \rceil)$, where $\text{BASE\_INCLUDED\_KM} = 3\text{ km}$.
+4. $\text{RawDeliveryCharge} = \text{BASE\_DELIVERY\_CHARGE} + (\text{ExtraKm} \times \text{PER\_KM\_RATE})$, where $\text{BASE\_DELIVERY\_CHARGE} = ₹20$ and $\text{PER\_KM\_RATE} = ₹8/\text{km}$.
+5. $\text{DeliveryCharge} = \begin{cases} 0 & \text{if } \text{ItemsSubtotal} > 349 \\ \text{RawDeliveryCharge} & \text{otherwise} \end{cases}$.
+6. $\text{ExpressFee} = \begin{cases} 150 & \text{if } \text{isExpress} = \text{true} \\ 0 & \text{otherwise} \end{cases}$.
+7. $\text{TotalAmount} = \text{ItemsSubtotal} + \text{DeliveryCharge} + \text{ExpressFee}$.
 
 ### 7.2 End-to-End Payment-First Sequence
 
@@ -343,8 +347,12 @@ The platform uses **Nodemailer** with **Gmail SMTP** (`service: "gmail"`) authen
 - Socket.io is bound to the exact same server instance (`initSocket(server)`), followed by `server.listen(PORT)` to ensure WebSocket upgrade requests resolve without port conflicts.
 
 ### 9.2 Event Architecture
-- **Room Joining**: `socket.emit("joinOrderRoom", orderId)` places the client into a private room keyed by `order._id`.
-- **Broadcasting**: When an administrator or partner updates an order's status in `updateOrderStatus`:
+
+#### 1. Room Management
+- **Room Joining**: `socket.emit("joinOrderRoom", orderId)` places client sockets into an isolated room keyed by `orderId`. Both customer tracking clients and partner dashboards join the specific order's room.
+
+#### 2. Order Status Progression (`orderStatusUpdate`)
+- **Broadcasting**: When an administrator or assigned delivery partner updates an order's status in `updateOrderStatus`:
   ```javascript
   getIO().to(order._id.toString()).emit("orderStatusUpdate", {
     orderId: order._id,
@@ -352,7 +360,130 @@ The platform uses **Nodemailer** with **Gmail SMTP** (`service: "gmail"`) authen
     timestamp: new Date(),
   });
   ```
-- **Client Consumption**: [`TrackOrder.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/pages/customer/TrackOrder.jsx) listens for `"orderStatusUpdate"` to immediately advance the visual timeline stepper without requiring page reloads.
+- **Client Consumption**: [`TrackOrder.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/pages/customer/TrackOrder.jsx) listens for `"orderStatusUpdate"` to dynamically advance the visual timeline stepper in real time.
+
+#### 3. Live Partner Location Streaming (`updateLocation` & `partnerLocation`)
+- **Incoming Socket Event**: `socket.on("updateLocation", async ({ orderId, lat, lng, token }) => { ... })`
+- **Multi-Layer Cryptographic Authorization**:
+  1. *Token Verification*: Verifies `token` against `JWT_SECRET` using `jwt.verify`. Rejects expired or tampered signatures.
+  2. *Role Enforcement*: Validates `decoded.role === "partner"`. Customers and unauthenticated sockets are barred from broadcasting.
+  3. *Assignment Verification*: Loads `Order.findById(orderId)` and resolves the partner's `DeliveryPartner` profile. Confirms that `order.assignedPartner` strictly matches `decoded.id` (or the partner document `_id`). Unassigned partners attempting to spoof coordinates for other orders are silently dropped and logged.
+- **Outgoing Broadcast**:
+  ```javascript
+  getIO().to(orderId.toString()).emit("partnerLocation", {
+    lat,
+    lng,
+    timestamp: new Date(),
+  });
+  ```
+- **Database Persistence**: Updates `DeliveryPartner.currentLocation = { lat, lng }` on every valid update. When a customer navigates to `TrackOrder.jsx`, `getOrderById` supplies this pre-stored coordinate on initial page load before live socket updates stream.
+
+### 9.3 OpenStreetMap & Geocoding Architecture
+- **Map Engine**: Built with Leaflet & React-Leaflet (`react-leaflet` v5) rendering free OpenStreetMap tiles (`https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png`).
+- **Nominatim Server-Side Geocoding**:
+  - Module: [`server/utils/geocoder.js`](file:///c:/Users/Pratik/laundryconnect/server/utils/geocoder.js).
+  - Queries `https://nominatim.openstreetmap.org/search?format=json&q=<address>` using a dedicated `User-Agent: LaundryConnect/1.0` header and rate-limit backoff (~1 req/sec).
+  - Caches resolved `{ lat, lng }` coordinates directly into `Order.pickupLocation` on first lookup, eliminating redundant external API queries on subsequent page loads.
+- **Custom Visual Markers**:
+  - Avoids Leaflet default asset 404s via `L.divIcon` with inline SVGs:
+    - *Pickup Marker*: Amber doorstep pin with animated sonar ripple.
+    - *Delivery Vehicle*: Emerald vehicle marker with live pulse indicator.
+  - Active Delivery Gating: Partner marker renders exclusively during active delivery states (`PickedUp`, `Washing`, `Ready`, `OutForDelivery`). In `Draft`, `Placed`, or `Delivered`, the partner marker is suppressed to avoid stale location confusion.
+- **Partner Geolocation Streaming**:
+  - [`PartnerDashboard.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/pages/partner/PartnerDashboard.jsx) provides a "Share My Location" toggle using `navigator.geolocation.watchPosition()`.
+  - Emits are throttled to roughly every 5-7 seconds to prevent WebSocket congestion.
+  - Watchers are systematically cleared via `clearWatch()` on toggle off and component unmount.
+  - Graceful inline error handling on permission denial (`error.code === 1`), missing GPS (`error.code === 2`), or timeout (`error.code === 3`).
+- **Partner-Side Live Map**:
+  - Reuses [`OrderLiveMap.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/components/OrderLiveMap.jsx) directly inside [`PartnerDashboard.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/pages/partner/PartnerDashboard.jsx), avoiding duplicate map implementations.
+  - Renders the active order customer pickup/delivery marker alongside the partner's live position marker with a dynamic connecting polyline.
+  - Feeds local coordinates directly from `watchPosition` into the map's local state, eliminating socket round-trip lag for the driver's own vehicle.
+  - Multi-Stop Routing: When orders are selected in the Route Optimizer (or ordered via Dijkstra), additional numbered stop markers render on the partner map.
+  - Renders a clean placeholder card when GPS sharing is inactive.
+
+### 9.4 GPS Signal-Quality Validation & Anti-Spoofing Heuristics
+Because the browser W3C Geolocation API cannot cryptographically attest that coordinates originate from real satellite hardware, LaundryConnect implements a robust, dual-tier signal quality validation pipeline:
+
+#### 1. Client-Side Filtering ([`PartnerDashboard.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/pages/partner/PartnerDashboard.jsx) & [`geoUtils.js`](file:///c:/Users/Pratik/laundryconnect/client/src/utils/geoUtils.js))
+- **Hardware-First Geolocation Options**:
+  ```javascript
+  { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
+  ```
+  Forces the browser to request high-accuracy satellite GPS fixes rather than relying on cached or low-fidelity IP/WiFi approximations.
+- **Accuracy Threshold Gate**: Every `position` reading evaluates `position.coords.accuracy`. If accuracy is worse than `100` meters (`MAX_GPS_ACCURACY_METERS`), the fix is flagged as a low-quality approximation: broadcasting is suppressed, and an inline UI banner warns *"Weak GPS signal — move to an open area"*.
+- **Implied Speed Ceiling**: Tracks `lastAcceptedPositionRef = { lat, lng, timestamp }`. On subsequent readings, the Haversine distance is calculated against elapsed time. If the implied speed exceeds `120 km/h` (`MAX_DELIVERY_SPEED_KMH`), the coordinate is classified as an implausible teleportation jump: the point is rejected, a console warning is emitted, and the watcher continues uninterrupted without adopting the bad coordinate as a baseline.
+
+#### 2. Server-Side Second-Line Validation ([`server/utils/socket.js`](file:///c:/Users/Pratik/laundryconnect/server/utils/socket.js))
+- **Payload Schema**: Socket event `updateLocation` accepts `{ orderId, lat, lng, accuracy, token }`.
+- **Accuracy Re-Validation**: Re-evaluates `accuracy > 100` meters. If exceeded, the server drops the update immediately prior to any database write or room broadcast.
+- **Temporal Speed Validation**: Fetches the partner's persisted `currentLocation` and timestamp from `DeliveryPartner`. Using `haversineDistance` from [`routeOptimizer.js`](file:///c:/Users/Pratik/laundryconnect/server/utils/routeOptimizer.js), computes the velocity since the last accepted coordinate. If implied speed exceeds `120 km/h` within a 30-minute window, the jump is rejected.
+- **Silent Logging & Anti-Tamper Security**: Rejections are logged at `console.warn` on the server with `orderId` and `partnerId` for operational observability. Rejection reasons are never exposed back to the client socket, preventing bad actors from iteratively tuning coordinate increments to defeat heuristic thresholds.
+
+> [!NOTE]
+> **Signal Filtering vs. Cryptographic Attestation**: This subsystem performs *heuristic signal-quality filtering*, not cryptographic GPS hardware attestation. True anti-spoofing requires native OS attestation APIs (e.g. Android Play Integrity, iOS DeviceCheck), which are architecturally out of scope for browser-based web applications (documented in Section 12).
+
+### 9.5 Live Address Autocomplete & Suggestion Proxy
+- **Endpoint**: `GET /api/geocode/suggest?q=<partial>`
+- **Proxy Architecture & Usage Compliance**:
+  - Rather than making direct client-side requests to OpenStreetMap's Nominatim (which risks CORS friction, per-client IP rate penalties, and browser header tampering), queries are securely brokered through [`server/utils/geocoder.js`](file:///c:/Users/Pratik/laundryconnect/server/utils/geocoder.js) and [`server/routes/geocodeRoutes.js`](file:///c:/Users/Pratik/laundryconnect/server/routes/geocodeRoutes.js).
+  - Complies with Nominatim usage terms by supplying a mandatory descriptive `User-Agent: LaundryConnect/1.0 (contact@laundryconnect.com)` header.
+  - Implements an in-memory query cache (`suggestionCache` with a 10-minute TTL) and preserves the strict 1-second request throttle (`MIN_INTERVAL_MS = 1050`), safeguarding free-tier upstream capacity from key stroke spam.
+- **Frontend Debounced Search**:
+  - In [`SchedulePickup.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/pages/customer/SchedulePickup.jsx), keystrokes are debounced by 400ms (minimum 3 characters).
+  - Selecting an address dropdown recommendation immediately populates the full street address and captures the exact `{ lat, lng }` coordinates.
+  - The geocoded coordinates are transmitted directly in `POST /api/orders` (`pickupLocation`), eliminating downstream geocoding latency during dispatch. The server preserves automatic Nominatim geocoding as a fallback for manually entered addresses.
+
+### 9.6 Smooth Animated, Rotating Partner Marker (Interpolation & Bearing)
+- **Problem**: Raw GPS fixes arriving intermittently every 5-7 seconds cause the delivery partner's marker to jerkily teleport across the map.
+- **Continuous Position Interpolation**:
+  - In [`OrderLiveMap.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/components/OrderLiveMap.jsx), marker movements are smoothly interpolated over a 1200ms duration using `requestAnimationFrame` with a quadratic ease-in-out curve ($f(t) = 2t^2$ for $t < 0.5$, $1 - \frac{(-2t + 2)^2}{2}$ for $t \ge 0.5$).
+  - Instead of instantaneous coordinate jumps, the vehicle glides continuously between coordinates, and the route polyline moves synchronously.
+- **Forward Azimuth / Bearing Calculation**:
+  - On each newly received coordinate, the vehicle's directional heading $\theta$ (in degrees clockwise from true north) is computed using spherical trigonometry:
+    $$\Delta \lambda = \lambda_2 - \lambda_1$$
+    $$y = \sin(\Delta \lambda) \cdot \cos(\phi_2)$$
+    $$x = \cos(\phi_1) \cdot \sin(\phi_2) - \sin(\phi_1) \cdot \cos(\phi_2) \cdot \cos(\Delta \lambda)$$
+    $$\theta = (\text{atan2}(y, x) \cdot \frac{180}{\pi} + 360) \pmod{360}$$
+  - The custom SVG vehicle `divIcon` applies CSS `transform: rotate(${heading}deg); transition: transform 0.4s ease-out;`.
+  - **Stationary Jitter Threshold**: If the vehicle displacement between successive updates is under 3 meters ($\Delta \text{distance}^2 < 0.00000009$), the previous heading angle is preserved to prevent erratic spinning while stationary.
+
+### 9.7 Distance-Based Dynamic Delivery Pricing (Removing Hard Geofencing)
+- **Problem with Hard Geofencing**: Hard boundary rejection (`SERVICE_RADIUS_KM = 15km`) unnecessarily turned away customers residing in adjoining suburbs or neighboring cities. Business economics dictates that delivery costs should scale proportionally with actual travel distance rather than artificially rejecting willing customers.
+- **Facility Hub Anchor**:
+  - `HUB_LAT` (default: `12.9716`), `HUB_LNG` (default: `77.5946`) anchor the central processing laundry facility.
+- **Distance-Tiered Pricing Formula**:
+  - Constants in [`orderController.js`](file:///c:/Users/Pratik/laundryconnect/server/controllers/orderController.js):
+    - `BASE_DELIVERY_CHARGE = 20` (INR, base flat charge covering the initial metropolitan radius).
+    - `BASE_INCLUDED_KM = 3` (kilometers included in the base charge).
+    - `PER_KM_RATE = 8` (INR charged per additional kilometer).
+  - Spherical distance calculation:
+    $$d = \text{Haversine}(\text{HUB}, \text{PickupLocation})$$
+    $$\Delta d = \max(0, \lceil d - \text{BASE\_INCLUDED\_KM} \rceil)$$
+    $$\text{RawDeliveryCharge} = \text{BASE\_DELIVERY\_CHARGE} + (\Delta d \times \text{PER\_KM\_RATE})$$
+  - Free Delivery Threshold: If $\text{ItemsSubtotal} > 349$, $\text{DeliveryCharge} = 0$; otherwise $\text{DeliveryCharge} = \text{RawDeliveryCharge}$.
+  - The computed distance is persisted on `Order.deliveryDistanceKm` as a permanent single source of truth across invoices, emails, and tracking displays.
+- **Frontend Real-Time Estimation & Single Source of Truth**:
+  - Endpoint: `GET /api/orders/estimate-delivery?lat=...&lng=...&itemsSubtotal=...` evaluates the authoritative server formula and returns `{ distanceKm, deliveryCharge, rawDeliveryCharge, extraKm, isFreeDelivery, isDistant }`.
+  - In [`SchedulePickup.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/pages/customer/SchedulePickup.jsx), selecting an address or typing updates the delivery charge preview instantly with distance context (e.g. "Delivery Charge (5.2 km): ₹36").
+- **Distant Address Informational Notice (Sanity, Not Rejection)**:
+  - If $d > 25\text{ km}$ (`DISTANT_THRESHOLD_KM`), the system presents an informational notice on [`SchedulePickup.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/pages/customer/SchedulePickup.jsx): *"This address is far from our facility (~X km) — delivery charge is ₹Y and turnaround may take longer than usual."*
+  - This notice is purely informational and never blocks order placement or checkout.
+
+### 9.8 Live Data Freshness Indicator & Disconnect Handling
+- **Real-Time Freshness Ticker**:
+  - A 1-second interval timer in [`OrderLiveMap.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/components/OrderLiveMap.jsx) compares current wall-clock time against the latest `timestamp` from the socket `partnerLocation` event.
+  - **Live State (< 30s elapsed)**: Displays a pulsing emerald badge with relative freshness (*"Live • Updated 3s ago"* or *"Updated just now"*).
+  - **Stale / Disconnected State ($\ge$ 30s elapsed)**: If the driver closes the app, loses cellular connectivity, or ceases sharing, the indicator smoothly transitions to an amber warning pill: *"Partner location unavailable • Last seen 2m ago"*.
+  - **Frozen Position Persistence**: The marker is frozen at its last known valid position (`lastKnownPartnerLocRef`) rather than blanking out the map, preventing confusing visual flashes.
+
+### 9.9 Admin Fleet Overview Map & Marker Clustering
+- **Clustered Fleet Visualization**:
+  - Added a dedicated "Live Fleet Map" tab to [`AdminDashboard.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/pages/admin/AdminDashboard.jsx) powered by [`AdminFleetMap.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/components/AdminFleetMap.jsx) and `leaflet.markercluster`.
+  - Nearby partner markers automatically coalesce into numeric cluster badges, preventing visual clutter when dozens of drivers operate within urban density. Clicking a cluster zooms into the subgroup.
+- **REST Snapshot Polling**:
+  - Endpoint: `GET /api/partners/live-locations` protected by `protect` and `authorize("admin")`.
+  - Polls every 15 seconds to provide administrators an operational overview without the server-side memory overhead of dozens of full-duplex socket subscriptions.
+  - Returns driver profile details, live persisted `{ lat, lng }` coordinates, vehicle type, availability flags, and active order references (`#ORDERID`, destination, total amount) for immediate inspection in map popups.
 
 ---
 
@@ -370,6 +501,9 @@ The platform uses **Nodemailer** with **Gmail SMTP** (`service: "gmail"`) authen
 | `CLIENT_URL` | `server/.env` | Optional | Deployed frontend origin allowed by CORS. |
 | `VITE_API_URL` | `client/.env` | Optional | Overrides backend API base URL (Default: `http://localhost:5000/api` in dev). |
 | `VITE_SOCKET_URL` | `client/.env` | Optional | Overrides Socket.io server connection URL (Default: `http://localhost:5000` in dev). |
+| `HUB_LAT` | `server/.env` | Optional (Default: `12.9716`) | Central facility latitude for distance-based delivery pricing. |
+| `HUB_LNG` | `server/.env` | Optional (Default: `77.5946`) | Central facility longitude for distance-based delivery pricing. |
+| `SERVICE_RADIUS_KM` | `server/.env` | Deprecated (Phase 6) | Previously used for hard geofence rejection; replaced by dynamic distance pricing. |
 
 ---
 
@@ -380,7 +514,7 @@ The platform uses **Nodemailer** with **Gmail SMTP** (`service: "gmail"`) authen
 - **Build Command**: `cd server && npm install`
 - **Start Command**: `node server/server.js`
 - **Configuration**:
-  - Set all production environment variables (`MONGO_URI`, `JWT_SECRET`, `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `GMAIL_USER`, `GMAIL_APP_PASSWORD`, `NODE_ENV=production`).
+  - Set all production environment variables (`MONGO_URI`, `JWT_SECRET`, `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `GMAIL_USER`, `GMAIL_APP_PASSWORD`, `HUB_LAT`, `HUB_LNG`, `SERVICE_RADIUS_KM`, `NODE_ENV=production`).
   - Render automatically assigns an HTTPS URL (e.g., `https://laundryconnect-api.onrender.com`).
 
 ### 11.2 Frontend Deployment (Static Site / Vercel / Render Static)
@@ -396,12 +530,46 @@ The platform uses **Nodemailer** with **Gmail SMTP** (`service: "gmail"`) authen
 2. **Gmail SMTP Sending Limits**: Standard Gmail accounts enforce an outbound sending quota of approximately 500 emails per 24 hours. For high-volume enterprise operations, switching to an enterprise SMTP relay (e.g. AWS SES, SendGrid) is recommended.
 3. **SMS Gateway Integration**: Complementing email receipts with Twilio / Fast2SMS text notifications when drivers depart for delivery.
 4. **Abandoned Draft Orders Cleanup**: When customers initiate checkout on `SchedulePickup` but dismiss the Razorpay modal or fail to complete payment, the order record persists in `currentStatus: "Draft"`, `paymentStatus: "Pending"`, and `orderVisibility: "Draft"`. While these orders are strictly excluded from the priority queue and all partner-facing dispatch dashboards, they accumulate in MongoDB. A planned enhancement is a background cron worker or a MongoDB TTL index on unverified draft orders older than 48 hours to automatically purge abandoned records.
+5. **Browser Geolocation API & Spoofing Attestation Limits**: The W3C Geolocation API operates within a standard web browser sandbox and cannot provide cryptographic hardware attestation proving that coordinates originate from real GNSS/GPS silicon rather than browser DevTools sensor overrides, mock location extensions, or network proxying. LaundryConnect implements heuristic signal filtering (accuracy threshold <= 100m, temporal Haversine speed ceilings <= 120 km/h, and server-side verification). True, spoof-proof location verification requires native mobile operating system attestation (such as Google Play Integrity API on Android or DeviceCheck / App Attest on iOS), which is architecturally impossible in a pure web browser environment. This is an explicit, stated limitation of browser-based client applications.
 
 ---
 
 ## 13. Changelog
 
 ### 2026-09-24
+- **DYNAMIC DISTANCE-BASED DELIVERY PRICING (Phase 6)**:
+  - *Context & Problem*: Hard geofencing rejected legitimate customers residing outside a rigid 15km radius. A modern logistics platform should serve customers at any distance, with delivery pricing scaling dynamically according to actual transit distance rather than rejecting orders.
+  - *Distance-Tiered Formula*:
+    - Base delivery charge: ₹20 covering the first 3 km (`BASE_INCLUDED_KM = 3`).
+    - Additional distance: ₹8 per additional km (`PER_KM_RATE = 8`), rounded up to the nearest integer km.
+    - Free delivery waiver preserved for orders with `itemsSubtotal > ₹349` applied after distance calculation.
+    - Persisted `deliveryDistanceKm` on the `Order` model as a single source of truth across all presentation surfaces.
+  - *Authoritative Server Preview Endpoint*: Created `GET /api/orders/estimate-delivery?lat=...&lng=...&itemsSubtotal=...` enabling zero-drift checkout price previews on [`SchedulePickup.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/pages/customer/SchedulePickup.jsx).
+  - *Distant Address Informational Notice*: For deliveries exceeding 25km (`DISTANT_THRESHOLD_KM`), an informative warning banner appears informing customers of distance and estimated turnaround without blocking checkout.
+  - *Unified Invoicing & Presentation*: Updated [`invoiceGenerator.js`](file:///c:/Users/Pratik/laundryconnect/server/utils/invoiceGenerator.js) (`buildInvoiceData` & PDF rendering), [`InvoiceModal.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/components/InvoiceModal.jsx), [`MyOrders.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/pages/customer/MyOrders.jsx), [`TrackOrder.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/pages/customer/TrackOrder.jsx), and [`emailService.js`](file:///c:/Users/Pratik/laundryconnect/server/utils/emailService.js) to display distance context (e.g., "Delivery Charge (5.2 km): ₹36").
+  - *Files Touched*: [`server/models/Order.js`](file:///c:/Users/Pratik/laundryconnect/server/models/Order.js), [`server/controllers/orderController.js`](file:///c:/Users/Pratik/laundryconnect/server/controllers/orderController.js), [`server/routes/orderRoutes.js`](file:///c:/Users/Pratik/laundryconnect/server/routes/orderRoutes.js), [`server/utils/invoiceGenerator.js`](file:///c:/Users/Pratik/laundryconnect/server/utils/invoiceGenerator.js), [`server/utils/emailService.js`](file:///c:/Users/Pratik/laundryconnect/server/utils/emailService.js), [`client/src/pages/customer/SchedulePickup.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/pages/customer/SchedulePickup.jsx), [`client/src/components/InvoiceModal.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/components/InvoiceModal.jsx), [`client/src/pages/customer/MyOrders.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/pages/customer/MyOrders.jsx), [`client/src/pages/customer/TrackOrder.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/pages/customer/TrackOrder.jsx), [`ARCHITECTURE.md`](file:///c:/Users/Pratik/laundryconnect/ARCHITECTURE.md).
+- **MAP POLISH & SERVICE-AREA INTELLIGENCE (Phase 5)**:
+  - *Context & Problem*: Arbitrary freeform text entry in pickup addresses caused geocoding misses and regional fallbacks. Markers moved jumpily between socket points without heading rotation. Orders could be placed for distant, unserviceable locations. Customers lacked connectivity freshness feedback. Administrators lacked a bird's-eye view of active delivery drivers.
+  - *Address Autocomplete*: Created `GET /api/geocode/suggest?q=...` proxying Nominatim with in-memory caching and compliant `User-Agent`. Integrated 400ms debounced search in [`SchedulePickup.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/pages/customer/SchedulePickup.jsx) with instant `{ lat, lng }` geocoded coordinate capture passed directly into order creation.
+  - *Smooth Animated, Rotating Partner Marker*: Implemented 1200ms `requestAnimationFrame` linear/quad easing interpolation in [`OrderLiveMap.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/components/OrderLiveMap.jsx). Added spherical azimuth / bearing calculation ($\text{atan2}$) to smoothly rotate the SVG vehicle marker along the travel vector with stationary jitter suppression (< 3m).
+  - *Service-Area Geofencing*: Integrated geometric circle radius validation in [`orderController.js`](file:///c:/Users/Pratik/laundryconnect/server/controllers/orderController.js) reusing `haversineDistance`. Blocks orders exceeding `SERVICE_RADIUS_KM` (15km) before payment, displaying non-destructive frontend errors allowing cart preservation and immediate address correction.
+  - *Live Data Freshness Indicator*: Added dynamic 1-second ticker in [`OrderLiveMap.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/components/OrderLiveMap.jsx) displaying pulsing green live badges (< 30s) and transitioning to an amber *"Partner location unavailable • Last seen Xm ago"* state when updates cease, while keeping the last known position frozen in place.
+  - *Admin Fleet Overview Map*: Installed `leaflet.markercluster` in `client/` and created [`AdminFleetMap.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/components/AdminFleetMap.jsx) integrated into [`AdminDashboard.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/pages/admin/AdminDashboard.jsx). Built admin-authenticated `GET /api/partners/live-locations` polling every 15s with interactive cluster zooms, vehicle indicators, and active order popups.
+  - *Files Touched*: [`server/utils/geocoder.js`](file:///c:/Users/Pratik/laundryconnect/server/utils/geocoder.js), [`server/routes/geocodeRoutes.js`](file:///c:/Users/Pratik/laundryconnect/server/routes/geocodeRoutes.js), [`server/controllers/orderController.js`](file:///c:/Users/Pratik/laundryconnect/server/controllers/orderController.js), [`server/controllers/partnerController.js`](file:///c:/Users/Pratik/laundryconnect/server/controllers/partnerController.js), [`server/routes/partnerRoutes.js`](file:///c:/Users/Pratik/laundryconnect/server/routes/partnerRoutes.js), [`server/server.js`](file:///c:/Users/Pratik/laundryconnect/server/server.js), [`server/.env`](file:///c:/Users/Pratik/laundryconnect/server/.env), [`server/.env.example`](file:///c:/Users/Pratik/laundryconnect/server/.env.example), [`client/package.json`](file:///c:/Users/Pratik/laundryconnect/client/package.json), [`client/src/index.css`](file:///c:/Users/Pratik/laundryconnect/client/src/index.css), [`client/src/components/OrderLiveMap.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/components/OrderLiveMap.jsx), [`client/src/components/AdminFleetMap.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/components/AdminFleetMap.jsx), [`client/src/pages/customer/SchedulePickup.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/pages/customer/SchedulePickup.jsx), [`client/src/pages/admin/AdminDashboard.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/pages/admin/AdminDashboard.jsx), [`ARCHITECTURE.md`](file:///c:/Users/Pratik/laundryconnect/ARCHITECTURE.md).
+- **PARTNER-SIDE LIVE MAP & GPS SIGNAL QUALITY VALIDATION (Phase 3B)**:
+  - *Context & Problem*: Delivery partners had GPS streaming controls but no visual map on `PartnerDashboard.jsx`. In addition, `updateLocation` accepted arbitrary coordinates without sanity filtering, allowing low-accuracy or spoofed teleport jumps to broadcast unchecked.
+  - *Partner-Side Live Map*: Reused `OrderLiveMap.jsx` directly in `PartnerDashboard.jsx` (zero redundant map forking). Connected the partner's active order destination with their live vehicle position via dynamic polyline. Fed local `watchPosition` updates directly into the map for zero-latency vehicle rendering. Multi-stop routing displays all selected orders from Route Optimizer as numbered map markers.
+  - *Dual-Layer GPS Quality Validation*:
+    - *Client Side*: Configured `watchPosition` with `{ enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }`. Filtered fixes with accuracy > 100m, displaying an inline *"Weak GPS signal — move to an open area"* alert without emitting. Implemented Haversine velocity calculation against `lastAcceptedPositionRef` to reject teleportation jumps exceeding 120 km/h.
+    - *Server Side*: Added `accuracy` validation and temporal speed verification (using `haversineDistance` from `routeOptimizer.js` against persisted `DeliveryPartner.currentLocation` and its timestamp) in `socket.js`. Dropped low-quality or implausible coordinates silently with server debug logs, preventing iterative tuning attacks.
+  - *Files Touched*: [`server/models/DeliveryPartner.js`](file:///c:/Users/Pratik/laundryconnect/server/models/DeliveryPartner.js), [`server/utils/socket.js`](file:///c:/Users/Pratik/laundryconnect/server/utils/socket.js), [`client/src/utils/geoUtils.js`](file:///c:/Users/Pratik/laundryconnect/client/src/utils/geoUtils.js), [`client/src/components/OrderLiveMap.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/components/OrderLiveMap.jsx), [`client/src/pages/partner/PartnerDashboard.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/pages/partner/PartnerDashboard.jsx), [`ARCHITECTURE.md`](file:///c:/Users/Pratik/laundryconnect/ARCHITECTURE.md).
+- **LIVE DELIVERY PARTNER MAP TRACKING (Leaflet + Nominatim + Socket.io)**:
+  - *Context & Problem*: Customers lacked real-time visibility into driver transit after orders entered active pickup or delivery.
+  - *Solution Applied*: Built an end-to-end live tracking subsystem using React-Leaflet (`react-leaflet` v5) and free OpenStreetMap tiles.
+  - *Nominatim Server-Side Geocoding*: Implemented [`server/utils/geocoder.js`](file:///c:/Users/Pratik/laundryconnect/server/utils/geocoder.js) with compliant `User-Agent: LaundryConnect/1.0` and rate-limiting. Geocoded pickup coordinates are cached on the `Order.pickupLocation` schema to eliminate redundant external lookups.
+  - *Cryptographic Socket Authorization*: Added `updateLocation` handler to [`server/utils/socket.js`](file:///c:/Users/Pratik/laundryconnect/server/utils/socket.js). Validates partner JWT token and verifies that the sending partner is the `assignedPartner` on that order before broadcasting `partnerLocation` coordinates to the order room. Persists `currentLocation` to `DeliveryPartner` for instant page-load rendering.
+  - *Frontend Controls*: Created [`OrderLiveMap.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/components/OrderLiveMap.jsx) with custom SVG markers (`L.divIcon`), smooth auto-bounding, and dynamic polyline transit lines. Added a throttled (7s) "Share My Location" toggle in [`PartnerDashboard.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/pages/partner/PartnerDashboard.jsx) with graceful browser permission denial handling.
+  - *Files Touched*: [`server/utils/socket.js`](file:///c:/Users/Pratik/laundryconnect/server/utils/socket.js), [`server/models/Order.js`](file:///c:/Users/Pratik/laundryconnect/server/models/Order.js), [`server/controllers/orderController.js`](file:///c:/Users/Pratik/laundryconnect/server/controllers/orderController.js), [`server/utils/geocoder.js`](file:///c:/Users/Pratik/laundryconnect/server/utils/geocoder.js), [`client/package.json`](file:///c:/Users/Pratik/laundryconnect/client/package.json), [`client/src/index.css`](file:///c:/Users/Pratik/laundryconnect/client/src/index.css), [`client/src/components/OrderLiveMap.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/components/OrderLiveMap.jsx), [`client/src/pages/customer/TrackOrder.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/pages/customer/TrackOrder.jsx), [`client/src/pages/partner/PartnerDashboard.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/pages/partner/PartnerDashboard.jsx), [`ARCHITECTURE.md`](file:///c:/Users/Pratik/laundryconnect/ARCHITECTURE.md).
 - **TRANSACTIONAL EMAIL TRANSPORT MIGRATION (Nodemailer / Gmail SMTP)**:
   - *Context & Problem*: Resend's default sandbox sender (`onboarding@resend.dev`) restricted delivery strictly to the account owner's email address. Sending emails to arbitrary real customer addresses was blocked without purchasing a custom verified domain.
   - *Solution Applied*: Replaced `resend` package with `nodemailer` using Gmail SMTP (`service: "gmail"`). Enabled unrestricted email delivery to ANY customer address using standard Google App Passwords.

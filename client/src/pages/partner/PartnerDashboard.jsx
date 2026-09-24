@@ -1,11 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import api from '../../api/axios';
+import socket from '../../api/socket';
+import OrderLiveMap from '../../components/OrderLiveMap';
 import {
   Truck, Zap, Navigation, Loader2,
-  RefreshCw, AlertTriangle, CheckCircle2, AlertCircle
+  RefreshCw, AlertTriangle, CheckCircle2, AlertCircle,
+  Radio, MapPin, Compass, ShieldAlert
 } from 'lucide-react';
 import { STATUS_COLORS } from '../customer/MyOrders';
 import { DashboardTableSkeleton } from '../../components/Skeleton';
+import {
+  calculateImpliedSpeed,
+  MAX_DELIVERY_SPEED_KMH,
+  MAX_GPS_ACCURACY_METERS
+} from '../../utils/geoUtils';
 
 const MOCK_COORDS = [
   { lat: 12.9740, lng: 77.5920 },
@@ -27,6 +35,32 @@ const PartnerDashboard = () => {
   const [optimizedRoute, setOptimizedRoute] = useState(null);
   const [optimizing, setOptimizing] = useState(false);
 
+  // Live Location Sharing & Signal Quality state
+  const [isSharingLocation, setIsSharingLocation] = useState(false);
+  const [activeTrackingOrderId, setActiveTrackingOrderId] = useState('');
+  const [currentGpsCoords, setCurrentGpsCoords] = useState(null);
+  const [gpsError, setGpsError] = useState('');
+  const [gpsWarning, setGpsWarning] = useState('');
+  const watchIdRef = useRef(null);
+  const lastEmitTimeRef = useRef(0);
+  const activeOrderRef = useRef('');
+  const lastAcceptedPositionRef = useRef(null);
+
+  // Keep activeOrderRef in sync with state
+  useEffect(() => {
+    activeOrderRef.current = activeTrackingOrderId;
+  }, [activeTrackingOrderId]);
+
+  // Clean up geolocation watch on unmount
+  useEffect(() => {
+    return () => {
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
+      }
+    };
+  }, []);
+
   // Per-row status update state: { orderId: { updating, msg, type } }
   const [rowStatus, setRowStatus] = useState({});
 
@@ -38,6 +72,15 @@ const PartnerDashboard = () => {
     try {
       const response = await api.get('/orders/queue');
       setQueue(response.data);
+      if (response.data && response.data.length > 0) {
+        setActiveTrackingOrderId((prev) => {
+          if (prev) return prev;
+          const activeItem = response.data.find((item) =>
+            ['PickedUp', 'OutForDelivery', 'Ready', 'Washing'].includes(item.order.currentStatus)
+          ) || response.data[0];
+          return activeItem ? activeItem.order._id : '';
+        });
+      }
     } catch (err) {
       console.error(err);
       setError('Failed to fetch orders from priority heap. Make sure server is running.');
@@ -87,6 +130,196 @@ const PartnerDashboard = () => {
     } finally {
       setOptimizing(false);
     }
+  };
+
+  // ─── Active Order and Additional Route Optimizer Stops Memoization ─────────
+  const activeOrder = useMemo(() => {
+    const item = queue.find((q) => q.order?._id === activeTrackingOrderId);
+    return item ? item.order : null;
+  }, [queue, activeTrackingOrderId]);
+
+  // Ensure active order has valid coordinates for mapping (with fallback for test/legacy orders)
+  const safeActiveOrder = useMemo(() => {
+    if (!activeOrder) return null;
+    const hasCoord =
+      activeOrder.pickupLocation &&
+      typeof activeOrder.pickupLocation.lat === 'number' &&
+      typeof activeOrder.pickupLocation.lng === 'number';
+
+    if (hasCoord) return activeOrder;
+
+    return {
+      ...activeOrder,
+      pickupLocation: {
+        lat: 12.9740,
+        lng: 77.5920,
+        address: activeOrder.pickupAddress || 'Customer Address',
+      },
+    };
+  }, [activeOrder]);
+
+  // Map route optimizer stops so they can be rendered as numbered markers alongside live GPS
+  const routeOptimizerStops = useMemo(() => {
+    if (optimizedRoute && optimizedRoute.length > 0) {
+      return optimizedRoute
+        .filter((stop) => stop.stopId !== activeTrackingOrderId)
+        .map((stop, index) => {
+          const item = queue.find((q) => q.order?._id === stop.stopId);
+          return {
+            id: stop.stopId,
+            lat: stop.lat,
+            lng: stop.lng,
+            stopNumber: index + 1,
+            label: `Stop #${index + 1}: Order #${stop.stopId.slice(-6).toUpperCase()}`,
+            address: item?.order?.pickupAddress || '',
+          };
+        });
+    }
+
+    return selectedStops
+      .filter((orderId) => orderId !== activeTrackingOrderId)
+      .map((orderId, index) => {
+        const item = queue.find((q) => q.order?._id === orderId);
+        const order = item?.order;
+        const lat =
+          order?.pickupLocation?.lat || MOCK_COORDS[index % MOCK_COORDS.length].lat;
+        const lng =
+          order?.pickupLocation?.lng || MOCK_COORDS[index % MOCK_COORDS.length].lng;
+        return {
+          id: orderId,
+          lat,
+          lng,
+          stopNumber: index + 1,
+          label: `Stop #${index + 1}: Order #${orderId.slice(-6).toUpperCase()}`,
+          address: order?.pickupAddress || '',
+        };
+      });
+  }, [optimizedRoute, selectedStops, activeTrackingOrderId, queue]);
+
+  // ─── Live Delivery GPS Sharing Toggle & Broadcast with Quality Checks ─────
+  const toggleLocationSharing = () => {
+    if (isSharingLocation) {
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
+      }
+      setIsSharingLocation(false);
+      setGpsError('');
+      setGpsWarning('');
+      lastAcceptedPositionRef.current = null;
+      return;
+    }
+
+    if (!navigator.geolocation) {
+      setGpsError('Geolocation is not supported by your browser.');
+      return;
+    }
+
+    const targetOrderId = activeOrderRef.current || (queue[0] && queue[0].order?._id);
+    if (!targetOrderId) {
+      setGpsError('Please select an active order to stream location for.');
+      return;
+    }
+
+    if (!activeTrackingOrderId) {
+      setActiveTrackingOrderId(targetOrderId);
+    }
+
+    setGpsError('');
+    setGpsWarning('');
+    setIsSharingLocation(true);
+
+    socket.connect();
+    lastEmitTimeRef.current = 0; // Force immediate initial broadcast for valid fix
+    lastAcceptedPositionRef.current = null;
+
+    const watchId = navigator.geolocation.watchPosition(
+      (position) => {
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+        const accuracy = Math.round(position.coords.accuracy);
+        const now = Date.now();
+
+        // ── Check 1: Accuracy Filter (Must be <= 100 meters) ──
+        if (accuracy > MAX_GPS_ACCURACY_METERS) {
+          console.warn(
+            `[GPS Signal Quality] Accuracy too low (${accuracy}m > ${MAX_GPS_ACCURACY_METERS}m). Update suppressed.`
+          );
+          setGpsWarning('Weak GPS signal — move to an open area');
+          return;
+        }
+
+        // ── Check 2: Implied Speed / Jump Filter (Ceiling: 120 km/h) ──
+        if (lastAcceptedPositionRef.current) {
+          const { speedKmh } = calculateImpliedSpeed(
+            lastAcceptedPositionRef.current,
+            lastAcceptedPositionRef.current.timestamp,
+            { lat, lng },
+            now
+          );
+
+          if (speedKmh > MAX_DELIVERY_SPEED_KMH) {
+            console.warn(
+              `[GPS Signal Quality] Implausible speed detected (${speedKmh.toFixed(1)} km/h > ${MAX_DELIVERY_SPEED_KMH} km/h). Update suppressed.`
+            );
+            setGpsWarning(`Implausible GPS jump detected (> ${MAX_DELIVERY_SPEED_KMH} km/h) — update rejected.`);
+            return;
+          }
+        }
+
+        // Valid GPS fix accepted
+        setGpsWarning('');
+        lastAcceptedPositionRef.current = { lat, lng, timestamp: now };
+
+        // Feed local live marker directly in real-time (zero socket round-trip latency)
+        setCurrentGpsCoords({ lat, lng, accuracy, timestamp: new Date() });
+
+        // Throttle emits to backend socket roughly every 5 seconds
+        if (now - lastEmitTimeRef.current >= 5000) {
+          lastEmitTimeRef.current = now;
+          const currentOrderId = activeOrderRef.current || targetOrderId;
+          const token = localStorage.getItem('token');
+
+          if (currentOrderId && token) {
+            socket.emit('updateLocation', {
+              orderId: currentOrderId,
+              lat,
+              lng,
+              accuracy,
+              token,
+            });
+            console.log(
+              `[PartnerDashboard] Broadcast live GPS for order ${currentOrderId}: (${lat.toFixed(5)}, ${lng.toFixed(5)}, ±${accuracy}m)`
+            );
+          }
+        }
+      },
+      (geoErr) => {
+        let msg = 'Unable to retrieve your location.';
+        if (geoErr.code === 1) {
+          msg = 'Location permission denied. Please allow location access in your browser.';
+        } else if (geoErr.code === 2) {
+          msg = 'Location unavailable. Ensure GPS/location services are enabled.';
+        } else if (geoErr.code === 3) {
+          msg = 'Location request timed out. Retrying GPS lock...';
+        }
+        setGpsError(msg);
+        setGpsWarning('');
+        lastAcceptedPositionRef.current = null;
+        if (watchIdRef.current !== null) {
+          navigator.geolocation.clearWatch(watchIdRef.current);
+          watchIdRef.current = null;
+        }
+        setIsSharingLocation(false);
+      },
+      {
+        enableHighAccuracy: true,
+        maximumAge: 0,
+        timeout: 10000,
+      }
+    );
+
+    watchIdRef.current = watchId;
   };
 
   // ─── Status update for one row ────────────────────────────────────────────
@@ -158,6 +391,192 @@ const PartnerDashboard = () => {
           <span>{error}</span>
         </div>
       )}
+
+      {/* ─── Live Delivery GPS Sharing Panel ─────────────────────────── */}
+      <div className="bg-theme-card p-6 rounded-3xl border border-theme shadow-theme-md transition-colors duration-200">
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
+          <div className="space-y-1">
+            <div className="flex items-center space-x-3">
+              <span className={`p-2.5 rounded-2xl border transition-colors ${isSharingLocation ? 'bg-green-500/15 border-green-500/30 text-green-500' : 'bg-theme-elevated border-theme text-theme-muted'}`}>
+                <Radio className={`h-5 w-5 ${isSharingLocation ? 'animate-pulse' : ''}`} />
+              </span>
+              <div>
+                <h2 className="text-base font-bold text-theme-primary font-poppins flex items-center gap-2">
+                  <span>Live Delivery GPS Tracking</span>
+                  {isSharingLocation && (
+                    <span className="bg-green-500/15 text-green-500 text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-md border border-green-500/30 animate-pulse">
+                      Live Stream Active
+                    </span>
+                  )}
+                </h2>
+                <p className="text-xs text-theme-muted mt-0.5">
+                  Stream your vehicle GPS position to the customer's live tracking map via WebSockets.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+            {/* Order Selector */}
+            <div className="flex-grow sm:flex-grow-0 min-w-[220px]">
+              <label className="block text-[10px] font-bold uppercase tracking-wider text-theme-muted mb-1">
+                Active Order Target
+              </label>
+              <select
+                value={activeTrackingOrderId}
+                onChange={(e) => setActiveTrackingOrderId(e.target.value)}
+                disabled={queue.length === 0}
+                className="w-full text-xs bg-theme-elevated border border-theme rounded-xl px-3 py-2 text-theme-primary font-semibold focus:outline-none focus:border-theme-accent"
+              >
+                {queue.length === 0 ? (
+                  <option value="">No orders in queue</option>
+                ) : (
+                  queue.map(({ order }) => (
+                    <option key={order._id} value={order._id}>
+                      Order #{order._id.slice(-6).toUpperCase()} ({order.currentStatus})
+                    </option>
+                  ))
+                )}
+              </select>
+            </div>
+
+            {/* Toggle Button */}
+            <div className="self-end">
+              <button
+                type="button"
+                onClick={toggleLocationSharing}
+                disabled={queue.length === 0 && !activeTrackingOrderId}
+                className={`flex items-center space-x-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-theme-sm disabled:opacity-50 ${
+                  isSharingLocation
+                    ? 'bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/30'
+                    : 'bg-theme-accent text-[var(--accent-text)] hover:opacity-95 shadow-theme-accent'
+                }`}
+              >
+                {isSharingLocation ? (
+                  <>
+                    <span className="w-2 h-2 rounded-full bg-red-500 animate-ping"></span>
+                    <span>Stop Location Sharing</span>
+                  </>
+                ) : (
+                  <>
+                    <Radio className="h-4 w-4" />
+                    <span>Share My Location</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Telemetry Bar */}
+        {isSharingLocation && currentGpsCoords && (
+          <div className="mt-4 pt-4 border-t border-theme flex flex-wrap items-center gap-4 text-xs font-mono">
+            <div className="flex items-center space-x-1.5 bg-theme-elevated px-3 py-1.5 rounded-xl border border-theme">
+              <MapPin className="h-3.5 w-3.5 text-theme-accent" />
+              <span className="text-theme-muted">Coords:</span>
+              <span className="font-bold text-theme-primary">
+                {currentGpsCoords.lat.toFixed(5)}, {currentGpsCoords.lng.toFixed(5)}
+              </span>
+            </div>
+            <div className="flex items-center space-x-1.5 bg-theme-elevated px-3 py-1.5 rounded-xl border border-theme">
+              <Compass className="h-3.5 w-3.5 text-emerald-500" />
+              <span className="text-theme-muted">Accuracy:</span>
+              <span className="font-bold text-theme-primary">&plusmn;{currentGpsCoords.accuracy}m</span>
+            </div>
+            <div className="text-[11px] text-theme-muted font-sans ml-auto">
+              Throttled GPS broadcast every ~7 seconds
+            </div>
+          </div>
+        )}
+
+        {/* Error Alert */}
+        {gpsError && (
+          <div className="mt-4 flex items-center space-x-2 bg-amber-500/10 border border-amber-500/30 rounded-2xl p-3 text-amber-500 text-xs">
+            <AlertCircle className="h-4 w-4 flex-shrink-0" />
+            <span>{gpsError}</span>
+          </div>
+        )}
+
+        {/* GPS Signal Quality Warning Banner */}
+        {gpsWarning && (
+          <div className="mt-4 flex items-center space-x-2 bg-amber-500/10 border border-amber-500/30 rounded-2xl p-3 text-amber-500 text-xs animate-pulse">
+            <ShieldAlert className="h-4 w-4 flex-shrink-0" />
+            <span className="font-semibold">{gpsWarning}</span>
+          </div>
+        )}
+
+        {/* Browser Security Note */}
+        <p className="text-[11px] text-theme-muted mt-3">
+          &bull; Note: Browser geolocation strictly requires a secure context (HTTPS) or <code className="text-theme-accent font-mono">localhost</code>.
+        </p>
+      </div>
+
+      {/* ── Live Route & Navigation Map Section ────────────────────────────── */}
+      <div className="bg-theme-card rounded-3xl border border-theme shadow-theme-sm overflow-hidden p-6 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-bold text-theme-primary font-poppins flex items-center space-x-2">
+              <Navigation className="h-5 w-5 text-theme-accent" />
+              <span>Live Route & Navigation Map</span>
+            </h2>
+            <p className="text-xs text-theme-muted mt-0.5">
+              Real-time telemetry showing your live vehicle position, customer destination, and active route stops.
+            </p>
+          </div>
+          {isSharingLocation && safeActiveOrder && (
+            <div className="flex items-center space-x-2 bg-theme-elevated px-3 py-1.5 rounded-xl border border-theme text-xs font-mono">
+              <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+              <span className="text-theme-muted">Routing Target:</span>
+              <span className="font-bold text-theme-primary">Order #{safeActiveOrder._id.slice(-6).toUpperCase()}</span>
+            </div>
+          )}
+        </div>
+
+        {isSharingLocation && safeActiveOrder ? (
+          <div className="space-y-3">
+            <OrderLiveMap
+              order={safeActiveOrder}
+              partnerLocation={currentGpsCoords}
+              isPartnerView={true}
+              additionalStops={routeOptimizerStops}
+              height="420px"
+            />
+            <div className="flex flex-wrap items-center justify-between text-[11px] text-theme-muted px-1 gap-2">
+              <div className="flex items-center space-x-4">
+                <span className="flex items-center space-x-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block" />
+                  <span>Customer Destination</span>
+                </span>
+                <span className="flex items-center space-x-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-theme-accent inline-block" />
+                  <span>Your Live GPS Position</span>
+                </span>
+                {routeOptimizerStops.length > 0 && (
+                  <span className="flex items-center space-x-1.5">
+                    <span className="w-2.5 h-2.5 rounded-full bg-purple-500 inline-block" />
+                    <span>Route Optimizer Stops ({routeOptimizerStops.length})</span>
+                  </span>
+                )}
+              </div>
+              <span>Live local telemetry &bull; Zero socket latency on partner map</span>
+            </div>
+          </div>
+        ) : (
+          <div className="bg-theme-elevated/40 border border-dashed border-theme rounded-2xl p-10 text-center space-y-3">
+            <div className="w-14 h-14 rounded-2xl bg-theme-surface border border-theme flex items-center justify-center mx-auto text-theme-muted">
+              <Navigation className="h-7 w-7 text-theme-muted opacity-60" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-theme-primary">Live Navigation Map Inactive</h3>
+              <p className="text-xs text-theme-muted max-w-md mx-auto mt-1">
+                {queue.length === 0
+                  ? 'No active orders in the queue to navigate.'
+                  : 'Click "Share My Location" above to activate high-accuracy GPS tracking and visualize your live route to the customer.'}
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Extracted Next Order */}
       {nextOrder && (

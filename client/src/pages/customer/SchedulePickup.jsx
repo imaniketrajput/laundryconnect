@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../api/axios';
 import { 
   Calendar as CalendarIcon, MapPin, Truck, AlertTriangle, 
   Sparkles, CheckCircle2, ChevronRight, Plus, Minus, Trash2,
-  Printer, Download, ArrowRight, ShieldCheck, RefreshCw, CreditCard
+  Printer, Download, ArrowRight, ShieldCheck, RefreshCw, CreditCard,
+  Loader2, Check, X
 } from 'lucide-react';
 
 const SchedulePickup = () => {
@@ -13,6 +14,13 @@ const SchedulePickup = () => {
   const navigate = useNavigate();
   const [cart, setCart] = useState({});
   const [pickupAddress, setPickupAddress] = useState(user?.address || '');
+  const [selectedLocation, setSelectedLocation] = useState(null); // { lat, lng }
+  const [suggestions, setSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [searchingAddress, setSearchingAddress] = useState(false);
+  const isSelectedFromSuggestionRef = useRef(false);
+  const dropdownRef = useRef(null);
+
   const [pickupDate, setPickupDate] = useState('');
   const [isExpress, setIsExpress] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -23,6 +31,65 @@ const SchedulePickup = () => {
   const [verifiedOrder, setVerifiedOrder] = useState(null);
   const [verifiedInvoice, setVerifiedInvoice] = useState(null);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
+
+  // Close suggestions on outside click
+  useEffect(() => {
+    const handleOutsideClick = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, []);
+
+  // Debounced address autocomplete against Nominatim proxy (/api/geocode/suggest)
+  useEffect(() => {
+    if (isSelectedFromSuggestionRef.current) {
+      isSelectedFromSuggestionRef.current = false;
+      return;
+    }
+
+    if (!pickupAddress || pickupAddress.trim().length < 3) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setSearchingAddress(true);
+      try {
+        const res = await api.get(`/geocode/suggest?q=${encodeURIComponent(pickupAddress.trim())}`);
+        setSuggestions(res.data || []);
+        setShowSuggestions((res.data || []).length > 0);
+      } catch (err) {
+        console.error('Failed to fetch address suggestions:', err);
+      } finally {
+        setSearchingAddress(false);
+      }
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [pickupAddress]);
+
+  const [deliveryEstimate, setDeliveryEstimate] = useState({
+    distanceKm: 0,
+    deliveryCharge: 20,
+    rawDeliveryCharge: 20,
+    extraKm: 0,
+    isFreeDelivery: false,
+    isDistant: false,
+    loading: false,
+  });
+
+  const handleSelectSuggestion = (suggestion) => {
+    isSelectedFromSuggestionRef.current = true;
+    setPickupAddress(suggestion.displayName);
+    setSelectedLocation({ lat: suggestion.lat, lng: suggestion.lng });
+    setPendingOrder(null);
+    setSuggestions([]);
+    setShowSuggestions(false);
+  };
 
   useEffect(() => {
     const savedCart = localStorage.getItem('laundry_cart');
@@ -43,6 +110,7 @@ const SchedulePickup = () => {
       delete newCart[svcId];
     }
     setCart(newCart);
+    setPendingOrder(null);
     localStorage.setItem('laundry_cart', JSON.stringify(newCart));
   };
 
@@ -50,13 +118,73 @@ const SchedulePickup = () => {
     const newCart = { ...cart };
     delete newCart[svcId];
     setCart(newCart);
+    setPendingOrder(null);
     localStorage.setItem('laundry_cart', JSON.stringify(newCart));
   };
 
   const cartItems = Object.values(cart);
   const subtotal = cartItems.reduce((sum, item) => sum + item.service.pricePerUnit * item.quantity, 0);
+
+  // Authoritative dynamic delivery estimation query
+  useEffect(() => {
+    let active = true;
+
+    const fetchEstimate = async () => {
+      try {
+        let query = `itemsSubtotal=${subtotal}`;
+        if (selectedLocation && typeof selectedLocation.lat === 'number') {
+          query += `&lat=${selectedLocation.lat}&lng=${selectedLocation.lng}`;
+        } else if (pickupAddress && pickupAddress.trim().length >= 3) {
+          query += `&address=${encodeURIComponent(pickupAddress.trim())}`;
+        } else {
+          if (active) {
+            setDeliveryEstimate(prev => ({
+              ...prev,
+              distanceKm: 0,
+              deliveryCharge: subtotal > 349 ? 0 : 20,
+              rawDeliveryCharge: 20,
+              extraKm: 0,
+              isFreeDelivery: subtotal > 349,
+              isDistant: false,
+            }));
+          }
+          return;
+        }
+
+        const res = await api.get(`/orders/estimate-delivery?${query}`);
+        if (active && res.data) {
+          setDeliveryEstimate({
+            distanceKm: res.data.distanceKm,
+            deliveryCharge: res.data.deliveryCharge,
+            rawDeliveryCharge: res.data.rawDeliveryCharge,
+            extraKm: res.data.extraKm,
+            isFreeDelivery: res.data.isFreeDelivery,
+            isDistant: res.data.isDistant,
+            loading: false,
+          });
+        }
+      } catch (err) {
+        console.warn('Failed to fetch delivery estimate:', err);
+        if (active) {
+          const defaultCharge = subtotal > 349 ? 0 : 20;
+          setDeliveryEstimate(prev => ({
+            ...prev,
+            deliveryCharge: defaultCharge,
+            isFreeDelivery: subtotal > 349,
+          }));
+        }
+      }
+    };
+
+    const timer = setTimeout(fetchEstimate, 250);
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [selectedLocation, pickupAddress, subtotal]);
+
   const expressFee = isExpress ? 150 : 0;
-  const deliveryFee = subtotal > 349 ? 0 : 49;
+  const deliveryFee = deliveryEstimate.deliveryCharge;
   const grandTotal = subtotal + expressFee + deliveryFee;
 
   // ─── Trigger Razorpay Checkout for an Order Record ──────────────────────────
@@ -170,6 +298,7 @@ const SchedulePickup = () => {
         const response = await api.post('/orders', {
           services: orderServices,
           pickupAddress: pickupAddress.trim(),
+          pickupLocation: selectedLocation || undefined,
           pickupDate,
           isExpress
         });
@@ -330,7 +459,9 @@ const SchedulePickup = () => {
                     <td className="py-2.5 px-4 text-right font-bold text-theme-primary">₹{verifiedInvoice.itemsSubtotal.toFixed(2)}</td>
                   </tr>
                   <tr className="bg-theme-elevated/40 text-theme-muted">
-                    <td colSpan={3} className="py-2.5 px-4 font-semibold">Delivery Charge</td>
+                    <td colSpan={3} className="py-2.5 px-4 font-semibold">
+                      Delivery Charge{verifiedInvoice.deliveryDistanceKm ? ` (${verifiedInvoice.deliveryDistanceKm} km)` : ''}
+                    </td>
                     <td className="py-2.5 px-4 text-right font-bold text-theme-primary">
                       {verifiedInvoice.deliveryCharge > 0 ? `₹${verifiedInvoice.deliveryCharge.toFixed(2)}` : 'FREE'}
                     </td>
@@ -507,21 +638,78 @@ const SchedulePickup = () => {
             <h2 className="text-lg font-bold text-theme-primary font-poppins">2. Pickup Details</h2>
             
             <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-theme-primary uppercase tracking-wider mb-1.5">Pickup Address</label>
+              <div ref={dropdownRef} className="relative">
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-bold text-theme-primary uppercase tracking-wider">
+                    Pickup Address
+                  </label>
+                  {selectedLocation && (
+                    <span className="inline-flex items-center space-x-1 text-[11px] font-bold text-green-500 bg-green-500/10 px-2 py-0.5 rounded-md border border-green-500/20">
+                      <Check className="h-3 w-3" />
+                      <span>GPS Verified ({selectedLocation.lat.toFixed(4)}, {selectedLocation.lng.toFixed(4)})</span>
+                    </span>
+                  )}
+                </div>
+
                 <div className="relative">
                   <div className="absolute top-3 left-3 flex items-start pointer-events-none">
-                    <MapPin className="h-5 w-5 text-theme-muted" />
+                    <MapPin className="h-5 w-5 text-theme-accent" />
                   </div>
                   <textarea
                     required
                     rows="3"
                     value={pickupAddress}
-                    onChange={(e) => setPickupAddress(e.target.value)}
-                    className="block w-full pl-10 pr-4 py-2.5 bg-theme-elevated border border-theme rounded-2xl text-theme-primary placeholder-theme-muted focus:outline-none focus:ring-2 focus:ring-theme-accent text-sm"
-                    placeholder="Enter full address for pickup and delivery"
+                    onChange={(e) => {
+                      setPickupAddress(e.target.value);
+                      setSelectedLocation(null);
+                      setPendingOrder(null);
+                    }}
+                    onFocus={() => {
+                      if (suggestions.length > 0) setShowSuggestions(true);
+                    }}
+                    className="block w-full pl-10 pr-10 py-2.5 bg-theme-elevated border border-theme rounded-2xl text-theme-primary placeholder-theme-muted focus:outline-none focus:ring-2 focus:ring-theme-accent text-sm"
+                    placeholder="Start typing your street address or locality (e.g. Koramangala, Indiranagar)..."
                   />
+                  {searchingAddress && (
+                    <div className="absolute top-3.5 right-3.5 flex items-center pointer-events-none">
+                      <Loader2 className="h-4 w-4 animate-spin text-theme-accent" />
+                    </div>
+                  )}
                 </div>
+
+                {/* Suggestions Dropdown */}
+                {showSuggestions && suggestions.length > 0 && (
+                  <div className="absolute left-0 right-0 z-50 mt-1 bg-theme-card border border-theme rounded-2xl shadow-theme-lg overflow-hidden max-h-60 overflow-y-auto divide-y divide-theme animate-in fade-in duration-150">
+                    <div className="px-3 py-1.5 bg-theme-elevated/80 text-[10px] uppercase tracking-wider font-bold text-theme-muted flex items-center justify-between">
+                      <span>Matching Addresses</span>
+                      <span>Select to auto-geocode</span>
+                    </div>
+                    {suggestions.map((item, idx) => (
+                      <button
+                        key={item.placeId || idx}
+                        type="button"
+                        onClick={() => handleSelectSuggestion(item)}
+                        className="w-full text-left px-3.5 py-2.5 hover:bg-theme-elevated transition-colors flex items-start space-x-2.5 group"
+                      >
+                        <MapPin className="h-4 w-4 text-theme-muted group-hover:text-theme-accent mt-0.5 flex-shrink-0" />
+                        <div className="flex-grow min-w-0">
+                          <p className="text-xs font-semibold text-theme-primary truncate">
+                            {item.displayName.split(',')[0]}
+                          </p>
+                          <p className="text-[11px] text-theme-muted truncate">
+                            {item.displayName.split(',').slice(1).join(',').trim()}
+                          </p>
+                        </div>
+                        <span className="text-[9px] font-mono font-bold text-theme-accent bg-theme-accent-light px-1.5 py-0.5 rounded border border-theme-accent self-center flex-shrink-0">
+                          Select
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <p className="text-[11px] text-theme-muted mt-1.5">
+                  &bull; Powered by OpenStreetMap Nominatim. Select a verified address to ensure accurate GPS dispatch.
+                </p>
               </div>
 
               <div>
@@ -554,10 +742,30 @@ const SchedulePickup = () => {
                 <span>Items Subtotal:</span>
                 <span className="font-bold text-theme-primary">₹{subtotal}</span>
               </div>
-              <div className="flex justify-between">
-                <span>Delivery Charge:</span>
-                <span>{deliveryFee === 0 ? <span className="text-green-500 font-bold">FREE</span> : `₹${deliveryFee}`}</span>
+              <div className="flex justify-between items-baseline">
+                <span>
+                  Delivery Charge
+                  {deliveryEstimate.distanceKm > 0 && (
+                    <span className="text-[11px] font-mono text-theme-muted ml-1">
+                      ({deliveryEstimate.distanceKm} km)
+                    </span>
+                  )}:
+                </span>
+                <span>
+                  {deliveryFee === 0 ? (
+                    <span className="text-green-500 font-bold">
+                      FREE {subtotal > 349 && <span className="text-[10px] text-theme-muted font-normal">(Order &gt; ₹349)</span>}
+                    </span>
+                  ) : (
+                    <span className="font-bold text-theme-primary">₹{deliveryFee}</span>
+                  )}
+                </span>
               </div>
+              {deliveryEstimate.extraKm > 0 && deliveryFee > 0 && (
+                <p className="text-[10px] text-theme-muted -mt-1 text-right">
+                  Base ₹20 (3 km) + ₹8/km for +{deliveryEstimate.extraKm} km
+                </p>
+              )}
               {isExpress && (
                 <div className="flex justify-between text-theme-accent font-semibold bg-theme-accent-light p-2 rounded-xl border border-theme-accent">
                   <span className="flex items-center space-x-1">
@@ -587,6 +795,19 @@ const SchedulePickup = () => {
                 Deliver within 24 hours. Boosts your heap-based processing priority score.
               </p>
             </div>
+
+            {/* Part 5 — Distant Delivery Informational Banner */}
+            {deliveryEstimate.isDistant && (
+              <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-3.5 flex items-start space-x-2.5 text-amber-500 text-xs animate-in fade-in">
+                <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                <div className="space-y-0.5">
+                  <p className="font-bold text-amber-400">Distant Address Notice</p>
+                  <p className="text-theme-primary/90 text-[11px] leading-relaxed">
+                    This address is far from our facility (~{deliveryEstimate.distanceKm} km) — delivery charge is ₹{deliveryFee} and turnaround may take longer than usual.
+                  </p>
+                </div>
+              </div>
+            )}
 
             <div className="border-t border-theme pt-4 flex justify-between items-end">
               <div>

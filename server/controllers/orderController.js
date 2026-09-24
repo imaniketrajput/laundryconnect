@@ -1,14 +1,54 @@
 const Order = require("../models/Order");
 const Service = require("../models/Service");
-const {buildOrderQueue} = require("../utils/orderQueueService");
-const {optimizeRoute} = require("../utils/routeOptimizer");
+const DeliveryPartner = require("../models/DeliveryPartner");
+const { buildOrderQueue } = require("../utils/orderQueueService");
+const { optimizeRoute, haversineDistance } = require("../utils/routeOptimizer");
 const { getIO } = require("../utils/socket");
 const { sendOrderConfirmationEmail, sendStatusUpdateEmail } = require("../utils/emailService");
+const { geocodeAddress } = require("../utils/geocoder");
 
+// Facility Hub & Distance-Based Delivery Pricing Parameters
+const HUB_LAT = parseFloat(process.env.HUB_LAT) || 12.9716;
+const HUB_LNG = parseFloat(process.env.HUB_LNG) || 77.5946;
+const BASE_DELIVERY_CHARGE = 20; // Base charge covering roughly the first ~3km from hub
+const BASE_INCLUDED_KM = 3;     // Kilometers included in the base delivery charge
+const PER_KM_RATE = 8;          // Rate per additional km beyond base-included distance
+const DISTANT_THRESHOLD_KM = 25; // Threshold beyond which informational banner is presented
+
+/**
+ * Authoritative distance-tiered delivery fee formula:
+ * - Base delivery charge: ₹20 (covers first 3 km)
+ * - Additional distance: ₹8 per km (rounded up for fractional km)
+ * - Free delivery waiver applied if itemsSubtotal > ₹349
+ * 
+ * @param {number} distanceKm - Spherical distance in km from facility hub
+ * @param {number} itemsSubtotal - Items subtotal in INR
+ * @returns {{ distanceKm: number, extraKm: number, rawDeliveryCharge: number, deliveryCharge: number, isFreeDelivery: boolean, isDistant: boolean }}
+ */
+const calculateDeliveryFee = (distanceKm, itemsSubtotal = 0) => {
+    const validDistance = typeof distanceKm === "number" && !isNaN(distanceKm) && distanceKm >= 0 ? distanceKm : 0;
+    const roundedDistance = parseFloat(validDistance.toFixed(1));
+    const extraKm = Math.max(0, Math.ceil(roundedDistance - BASE_INCLUDED_KM));
+    const rawDeliveryCharge = BASE_DELIVERY_CHARGE + (extraKm * PER_KM_RATE);
+    const deliveryCharge = itemsSubtotal > 349 ? 0 : rawDeliveryCharge;
+    return {
+        distanceKm: roundedDistance,
+        extraKm,
+        rawDeliveryCharge,
+        deliveryCharge,
+        isFreeDelivery: itemsSubtotal > 349,
+        isDistant: roundedDistance > DISTANT_THRESHOLD_KM,
+    };
+};
+
+exports.calculateDeliveryFee = calculateDeliveryFee;
+exports.BASE_DELIVERY_CHARGE = BASE_DELIVERY_CHARGE;
+exports.BASE_INCLUDED_KM = BASE_INCLUDED_KM;
+exports.PER_KM_RATE = PER_KM_RATE;
 
 exports.createOrder = async (req, res) =>{
     try{
-        const {services, pickupAddress, pickupDate, isExpress} = req.body;
+        const {services, pickupAddress, pickupDate, isExpress, pickupLocation: clientLocation} = req.body;
         const customerId = req.user.id;
 
         if(!services || services.length === 0)
@@ -47,17 +87,53 @@ exports.createOrder = async (req, res) =>{
             return res.status(400).json({message: "Order items subtotal must be greater than zero"});
         }
 
-        // Delivery fee: ₹49 unless items subtotal > ₹349; Express fee: ₹150 if isExpress
-        const deliveryCharge = itemsSubtotal > 349 ? 0 : 49;
+        // Resolve coordinates: use client-supplied autocomplete coordinates if present,
+        // or fall back to server-side geocoding
+        let pickupLocation = null;
+        if (
+            clientLocation &&
+            typeof clientLocation.lat === "number" &&
+            typeof clientLocation.lng === "number" &&
+            !isNaN(clientLocation.lat) &&
+            !isNaN(clientLocation.lng)
+        ) {
+            pickupLocation = { lat: clientLocation.lat, lng: clientLocation.lng };
+        } else {
+            try {
+                pickupLocation = await geocodeAddress(pickupAddress.trim());
+            } catch (geoErr) {
+                console.warn("[OrderController] Initial geocoding warning:", geoErr.message);
+            }
+        }
+
+        // Distance-Based Dynamic Delivery Fee:
+        // As of Phase 6, hard geofence rejections are removed. Deliveries scale by actual distance.
+        let deliveryDistanceKm = 0;
+        let deliveryCharge = BASE_DELIVERY_CHARGE;
+
+        if (
+            pickupLocation &&
+            typeof pickupLocation.lat === "number" &&
+            typeof pickupLocation.lng === "number"
+        ) {
+            const rawDist = haversineDistance({ lat: HUB_LAT, lng: HUB_LNG }, pickupLocation);
+            const feeCalc = calculateDeliveryFee(rawDist, itemsSubtotal);
+            deliveryDistanceKm = feeCalc.distanceKm;
+            deliveryCharge = feeCalc.deliveryCharge;
+        } else {
+            deliveryCharge = itemsSubtotal > 349 ? 0 : BASE_DELIVERY_CHARGE;
+        }
+
         const expressFee = isExpress ? 150 : 0;
         const totalAmount = itemsSubtotal + deliveryCharge + expressFee;
-
         const priorityScore = isExpress ? 100 : 10;
 
         const order = await Order.create({
             customer: customerId,
             services,
             pickupAddress: pickupAddress.trim(),
+            pickupLocation: pickupLocation || undefined,
+            deliveryDistanceKm,
             pickupDate,
             isExpress: !!isExpress,
             priorityScore,
@@ -74,6 +150,48 @@ exports.createOrder = async (req, res) =>{
         res.status(201).json(order);
     }catch(err){
         res.status(500).json({message: err.message});
+    }
+};
+
+/**
+ * Lightweight delivery fee preview endpoint for frontend checkout preview.
+ * GET /api/orders/estimate-delivery?lat=..&lng=..&itemsSubtotal=..
+ */
+exports.estimateDeliveryFee = async (req, res) => {
+    try {
+        let lat = parseFloat(req.query.lat);
+        let lng = parseFloat(req.query.lng);
+        const itemsSubtotal = parseFloat(req.query.itemsSubtotal) || 0;
+
+        if (isNaN(lat) || isNaN(lng)) {
+            if (req.query.address && req.query.address.trim()) {
+                try {
+                    const coords = await geocodeAddress(req.query.address.trim());
+                    lat = coords.lat;
+                    lng = coords.lng;
+                } catch (e) {
+                    lat = HUB_LAT;
+                    lng = HUB_LNG;
+                }
+            } else {
+                lat = HUB_LAT;
+                lng = HUB_LNG;
+            }
+        }
+
+        const rawDist = haversineDistance({ lat: HUB_LAT, lng: HUB_LNG }, { lat, lng });
+        const feeData = calculateDeliveryFee(rawDist, itemsSubtotal);
+
+        res.json({
+            ...feeData,
+            baseDeliveryCharge: BASE_DELIVERY_CHARGE,
+            baseIncludedKm: BASE_INCLUDED_KM,
+            perKmRate: PER_KM_RATE,
+            distantThresholdKm: DISTANT_THRESHOLD_KM,
+            hub: { lat: HUB_LAT, lng: HUB_LNG },
+        });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
     }
 };
 
@@ -99,7 +217,50 @@ exports.getOrderById = async (req, res) => {
             return res.status(403).json({ message: "Not authorized to access this order" });
         }
 
-        res.json(order);
+        // Cache pickup coordinates and delivery distance on Order document if missing
+        let shouldSave = false;
+        if (!order.pickupLocation || typeof order.pickupLocation.lat !== "number") {
+            try {
+                const coords = await geocodeAddress(order.pickupAddress);
+                order.pickupLocation = coords;
+                shouldSave = true;
+            } catch (geoErr) {
+                console.warn("[OrderController] Failed to auto-geocode order address:", geoErr.message);
+            }
+        }
+
+        if ((!order.deliveryDistanceKm || order.deliveryDistanceKm === 0) && order.pickupLocation && typeof order.pickupLocation.lat === "number") {
+            const rawDist = haversineDistance({ lat: HUB_LAT, lng: HUB_LNG }, order.pickupLocation);
+            order.deliveryDistanceKm = parseFloat(rawDist.toFixed(1));
+            shouldSave = true;
+        }
+
+        if (shouldSave) {
+            await order.save();
+        }
+
+        const orderObj = order.toObject();
+
+        // Attach latest delivery partner location if assigned
+        if (order.assignedPartner) {
+            try {
+                const partnerDoc = await DeliveryPartner.findOne({
+                    $or: [
+                        { user: order.assignedPartner },
+                        { _id: order.assignedPartner }
+                    ]
+                }).select("currentLocation vehicleType");
+
+                if (partnerDoc && partnerDoc.currentLocation && typeof partnerDoc.currentLocation.lat === "number") {
+                    orderObj.partnerLocation = partnerDoc.currentLocation;
+                    orderObj.partnerVehicleType = partnerDoc.vehicleType;
+                }
+            } catch (partnerErr) {
+                console.warn("[OrderController] Failed to fetch partner location for order:", partnerErr.message);
+            }
+        }
+
+        res.json(orderObj);
     }catch (err){
         res.status(500).json({message: err.message});
     }

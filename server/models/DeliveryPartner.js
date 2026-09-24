@@ -7,6 +7,8 @@ const deliveryPartnerSchema = new mongoose.Schema(
         currentLocation: {
             lat: Number,
             lng: Number,
+            accuracy: Number,
+            timestamp: { type: Date, default: Date.now },
         },
         isAvailable: {type: Boolean, default: true},
         rating: {type: Number, default: 5},
