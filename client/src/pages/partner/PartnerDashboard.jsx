@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import api from '../../api/axios';
 import socket from '../../api/socket';
 import OrderLiveMap from '../../components/OrderLiveMap';
+import OrderChatPanel from '../../components/OrderChatPanel';
 import {
   Truck, Zap, Navigation, Loader2,
   RefreshCw, AlertTriangle, CheckCircle2, AlertCircle,
@@ -602,6 +603,9 @@ const PartnerDashboard = () => {
               <p className="font-semibold pt-0.5 text-theme-primary">{new Date(nextOrder.order.pickupDate).toLocaleDateString()}</p>
             </div>
           </div>
+          {nextOrder.order.assignedPartner && (
+            <OrderChatPanel orderId={nextOrder.order._id} defaultCollapsed={true} />
+          )}
         </div>
       )}
 
@@ -634,7 +638,7 @@ const PartnerDashboard = () => {
                   <tbody className="divide-y divide-theme font-sans">
                     {queue.map(({ order, priority }) => {
                       const rs = rowStatus[order._id] || {};
-                      return (
+                      return [
                         <tr key={order._id} className="hover:bg-theme-elevated/40 transition-colors">
                           <td className="py-3.5 pl-2">
                             <input
@@ -692,8 +696,15 @@ const PartnerDashboard = () => {
                               )}
                             </div>
                           </td>
-                        </tr>
-                      );
+                        </tr>,
+                        order.assignedPartner ? (
+                          <tr key={`${order._id}-chat`} className="bg-theme-elevated/20">
+                            <td colSpan={6} className="p-3 border-b border-theme">
+                              <OrderChatPanel orderId={order._id} defaultCollapsed={true} />
+                            </td>
+                          </tr>
+                        ) : null
+                      ];
                     })}
                   </tbody>
                 </table>

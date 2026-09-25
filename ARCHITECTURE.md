@@ -591,7 +591,8 @@ Because the browser W3C Geolocation API cannot cryptographically attest that coo
 | Variable Name | Location | Required / Optional | Description |
 |---|---|---|---|
 | `PORT` | `server/.env` | Optional (Default: `5000`) | Port on which the Express server listens. |
-| `MONGO_URI` | `server/.env` | **Required** | MongoDB connection URI (e.g. MongoDB Atlas cluster connection string). |
+| `MONGO_URI` | `server/.env` | **Required** | Primary transactional MongoDB connection URI (Users, Orders, Services, Slots, Partners). |
+| `CHAT_MONGO_URI` | `server/.env` | **Required** (for Order Chat) | Dedicated MongoDB connection URI for live order chat traffic (separate Atlas M0 cluster or separate database on same cluster). |
 | `JWT_SECRET` | `server/.env` | **Required** | Cryptographic secret for signing and verifying JWT tokens. |
 | `RAZORPAY_KEY_ID` | `server/.env` | **Required** | Razorpay Key ID (`rzp_test_...` in test mode or `rzp_live_...`). |
 | `RAZORPAY_KEY_SECRET` | `server/.env` | **Required** | Razorpay Key Secret for orders creation and HMAC verification. |
@@ -749,9 +750,122 @@ A wrong AI-stated price or false delivery promise represents a critical business
 
 ---
 
+## 12. Live Customer-Partner Order Chat Subsystem (Separate Database & 7-Day TTL Cleanup)
+
+### 12.1 Subsystem Overview & Rationale
+Distinct from the AI customer support chatbot (which handles platform FAQs, pricing policies, and turnaround rules), the **Live Customer-Partner Order Chat** enables real-time, order-scoped bidirectional messaging directly between the authenticated customer and the delivery partner assigned to their specific order. It is designed specifically for operational coordination ("I'm outside gate 2", "which flat number?", "please ring the doorbell").
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Customer as Customer (TrackOrder.jsx)
+    participant Socket as Socket.io Server (socket.js)
+    participant MainDB as Primary MongoDB Atlas (Orders / Users)
+    participant ChatDB as Separate Chat MongoDB Atlas (Messages)
+    actor Partner as Delivery Partner (PartnerDashboard.jsx)
+
+    Customer->>Socket: joinOrderRoom (orderId)
+    Partner->>Socket: joinOrderRoom (orderId)
+
+    Customer->>Socket: sendChatMessage { orderId, text, token }
+    Note over Socket: 1. Rate Limiting (max 1 msg/s per socket)
+    Note over Socket: 2. JWT Verification (jwt.verify)
+    Note over Socket: 3. Sanitization (strip/escape HTML entities)
+    Socket->>MainDB: Order.findById(orderId) & check customer/assignedPartner
+    alt Unauthorized (neither customer nor assigned partner)
+        Socket-->>Socket: Log warning & drop silently
+    else Authorized
+        Socket->>ChatDB: Message.create({ order, sender, senderRole, text, createdAt })
+        Socket-->>Customer: newChatMessage { _id, order, sender, senderRole, text, createdAt }
+        Socket-->>Partner: newChatMessage { _id, order, sender, senderRole, text, createdAt }
+    end
+```
+
+### 12.2 Database Separation Architecture
+To isolate high-write, disposable chat traffic from core transactional data (Users, Orders, Services, Payments), the chat subsystem operates on a **completely separate Mongoose connection** created via `mongoose.createConnection()` (in [`server/config/chatDb.js`](file:///c:/Users/Pratik/laundryconnect/server/config/chatDb.js)), rather than sharing the default `mongoose.connect()` singleton.
+
+- **Resilience & Fault Isolation**: If the chat cluster experiences network latency, connection exhaustion, or temporary downtime, the primary transactional database is completely insulated. The main application (order placement, payment processing, route optimization, driver location telemetry) remains 100% operational. Chat REST endpoints gracefully degrade with HTTP 503 (`"Chat service is temporarily offline"`), and socket handlers log warnings without crashing the Node.js process.
+- **Connection Configuration Options**:
+  1. *Dedicated Cluster (Atlas Free Tier M0)*: A second MongoDB Atlas free-tier cluster dedicated exclusively to chat. To configure:
+     - In MongoDB Atlas, create a new project or cluster (e.g. `Cluster-Chat`, M0 Sandbox).
+     - Under "Database Access", create a database user and record credentials.
+     - Under "Network Access", allow access from anywhere (`0.0.0.0/0`) or your Render backend IP.
+     - In "Databases" -> "Connect" -> "Drivers", copy the standard connection string.
+     - Set `CHAT_MONGO_URI=mongodb+srv://<user>:<password>@cluster-chat.mongodb.net/laundryconnect_chat?retryWrites=true&w=majority` in `server/.env`.
+  2. *Logical Separation Fallback (Different DB on Same Cluster)*: When provisioning a second Atlas cluster is impractical, pointing `CHAT_MONGO_URI` to a differently-named database on the existing cluster (`.../laundryconnect_chat` vs `.../laundryconnect`) achieves logical database separation and independent connection pools with zero additional cloud infrastructure overhead.
+
+### 12.3 Message Data Model & 7-Day TTL Auto-Cleanup
+The `Message` schema ([`server/models/Message.js`](file:///c:/Users/Pratik/laundryconnect/server/models/Message.js)) is bound strictly to the separate chat connection:
+
+```javascript
+{
+  order: { type: ObjectId, ref: "Order", required: true, index: true },
+  sender: { type: ObjectId, ref: "User", required: true },
+  senderRole: { type: String, enum: ["customer", "partner"], required: true },
+  text: { type: String, required: true, maxlength: 1000, trim: true },
+  createdAt: { type: Date, default: Date.now }
+}
+```
+
+- **Full TTL Index**: `messageSchema.index({ createdAt: 1 }, { expireAfterSeconds: 604800 });` (7 days = 604,800 seconds).
+- **Eventually-Consistent Deletion**: MongoDB's background TTL thread scans and removes expired documents approximately once every 60 seconds. Deletions occur automatically without background cron jobs or manual server intervention.
+- **Design Rationale**: Chat logs are ephemeral operational coordination, not permanent audit or tax records. Automatic TTL keeps the free-tier database small and prevents unbounded storage growth. Historical order records, invoices, and timeline notes remain permanent in the primary database.
+
+### 12.4 Server-Side Sanitization & XSS Prevention
+Chat messages are rendered directly in the user interface. To prevent Cross-Site Scripting (XSS), [`server/utils/sanitize.js`](file:///c:/Users/Pratik/laundryconnect/server/utils/sanitize.js) sanitizes all incoming text server-side before persisting to MongoDB:
+- Disarms HTML tags and replaces HTML special characters (`&`, `<`, `>`, `"`, `'`) with safe entity equivalents.
+- Enforces a 1000-character ceiling before and after trimming.
+
+### 12.5 Socket Event Flow & Rate Limiting
+- **Room Reuse**: Reuses the exact same order-scoped room pattern established in Phase 3 (`socket.emit("joinOrderRoom", orderId)`).
+- **`sendChatMessage` Event**:
+  - Validates `orderId`, `text`, and `token`.
+  - Enforces per-connection rate limiting via an in-memory timestamp map (`lastSocketChatTimes`, maximum 1 message per second per socket) to prevent spam or flood attacks.
+  - Verifies JWT token cryptographically (`jwt.verify`).
+  - Performs dual-layer IDOR verification: checks the primary database `Order` to ensure `sender` is either `order.customer` or `order.assignedPartner`. Unauthorized attempts are rejected silently (logged on the server).
+  - Persists message to the separate `Message` collection and broadcasts `newChatMessage` to the order room via `getIO().to(orderId.toString()).emit("newChatMessage", data)`.
+
+### 12.6 Frontend Component & UX Architecture
+- **Reusable Component**: [`OrderChatPanel.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/components/OrderChatPanel.jsx) encapsulates message history fetching (`GET /api/orders/:id/messages`), room subscription, live message reception, and message emission.
+- **Collapsible Header & Unread Badge**: Features an expandable toggle header showing live connection status. If new messages arrive while the panel is collapsed, a pulsing unread counter badge (`X new`) appears and clears automatically upon expansion.
+- **Theme-Aligned Sender Bubbles**: Messages sent by the viewer align to the right with accent-colored styling; messages from the other party align to the left in elevated theme cards.
+- **Mobile Responsiveness**: Designed mobile-first with touch-friendly controls (`h-10 sm:h-9`), break-words text containers, and quick coordination chips ("I'm outside", "Which gate?"), verified down to 360px viewport width.
+- **Additive Placement**:
+  - [`TrackOrder.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/pages/customer/TrackOrder.jsx): Rendered directly below the live delivery map when `order.assignedPartner` is set.
+  - [`PartnerDashboard.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/pages/partner/PartnerDashboard.jsx): Rendered within the order row when `order.assignedPartner` is set.
+
+---
+
 ## 14. Changelog
 
-### 2026-09-25 (Chat Widget Viewport-Responsive Layout & Full Site Knowledge Training)
+### 2026-09-25 (Phase 5: Live Customer-Partner Order Chat & Separate Database)
+- **LIVE CUSTOMER-PARTNER ORDER CHAT WITH 7-DAY TTL CLEANUP**:
+  - *Context & Rationale*: Built real-time operational coordination chat directly between customers and their assigned delivery partners for live pickup/delivery logistics ("I'm outside", "which gate"). Reused existing order-scoped Socket.io room infrastructure while strictly isolating high-write chat traffic from transactional data.
+  - *Separate Database Architecture*:
+    - Created dedicated Mongoose connection via `mongoose.createConnection()` in [`server/config/chatDb.js`](file:///c:/Users/Pratik/laundryconnect/server/config/chatDb.js) bound to `CHAT_MONGO_URI`.
+    - Defined [`Message.js`](file:///c:/Users/Pratik/laundryconnect/server/models/Message.js) model bound to the separate chat connection with a full 7-day TTL index (`expireAfterSeconds: 604800`) for automatic background cleanup.
+    - Added server-side XSS sanitization in [`server/utils/sanitize.js`](file:///c:/Users/Pratik/laundryconnect/server/utils/sanitize.js) disarming HTML entities before persistence.
+    - Graceful degradation: if `CHAT_MONGO_URI` is unset or unreachable, the core application (orders, payments, tracking) continues running without interruption.
+  - *Backend Controllers & Socket Events*:
+    - Created [`server/controllers/chatOrderController.js`](file:///c:/Users/Pratik/laundryconnect/server/controllers/chatOrderController.js) with `GET /api/orders/:id/messages` enforcing strict IDOR authorization (requester must be `order.customer` or `order.assignedPartner`).
+    - Added route `GET /api/orders/:id/messages` to [`server/routes/orderRoutes.js`](file:///c:/Users/Pratik/laundryconnect/server/routes/orderRoutes.js).
+    - Added `socket.on("sendChatMessage")` to [`server/utils/socket.js`](file:///c:/Users/Pratik/laundryconnect/server/utils/socket.js) with per-socket rate limiting (max 1 msg/sec), JWT verification, IDOR validation, and room broadcasting (`newChatMessage`). Preserved 100% of existing `orderStatusUpdate` and `partnerLocation` handlers without modification.
+  - *Frontend Implementation*:
+    - Created reusable [`OrderChatPanel.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/components/OrderChatPanel.jsx) with collapsible toggle header, unread message count badge, sender-aligned theme bubbles, quick coordination chips, auto-scrolling, and mobile responsiveness tested at 360px.
+    - Additively embedded in [`TrackOrder.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/pages/customer/TrackOrder.jsx) below the live map when `order.assignedPartner` is set.
+    - Additively embedded in [`PartnerDashboard.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/pages/partner/PartnerDashboard.jsx) in the queue table and extracted order card when `order.assignedPartner` is set.
+  - *Files Touched*:
+    - `server/.env`
+    - `server/config/chatDb.js`
+    - `server/models/Message.js`
+    - `server/utils/sanitize.js`
+    - `server/controllers/chatOrderController.js`
+    - `server/routes/orderRoutes.js`
+    - `server/utils/socket.js`
+    - `client/src/components/OrderChatPanel.jsx`
+    - `client/src/pages/customer/TrackOrder.jsx`
+    - `client/src/pages/partner/PartnerDashboard.jsx`
+    - `ARCHITECTURE.md`
 - **VIEWPORT & ZOOM RESPONSIVE LAYOUT FIX (Pure Inline Styles & Zero Edge Clipping)**:
   - *Context & Bug*: At non-100% browser zoom levels (e.g. 90%, 80%, 67%) and narrower viewports, the chat panel's right edge clipped off-screen, and accumulated chat messages caused the panel to expand infinitely upwards past the top of the browser viewport.
   - *Root Cause Identified via Live Chrome DevTools Protocol*: Tailwind CSS v3.4 JIT silently drops arbitrary-value classes containing commas (`w-[min(420px,calc(100vw-3rem))]`, `h-[min(580px,calc(100vh-130px))]`, `max-h-[...]`). Because these classes were omitted from the compiled CSS bundle, `height` reverted to `auto` and `maxWidth` remained unset, causing upward runaway growth from the `bottom-24` anchor.

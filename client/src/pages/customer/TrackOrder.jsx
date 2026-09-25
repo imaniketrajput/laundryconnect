@@ -4,6 +4,7 @@ import socket from "../../api/socket";
 import api from '../../api/axios';
 import StatusTimeline from '../../components/StatusTimeline';
 import OrderLiveMap from '../../components/OrderLiveMap';
+import OrderChatPanel from '../../components/OrderChatPanel';
 import { TimelineSkeleton } from '../../components/Skeleton';
 import { Search, Sparkles, AlertCircle, Calendar, MapPin } from 'lucide-react';
 
@@ -189,6 +190,11 @@ const TrackOrder = () => {
               lastUpdated={partnerLastUpdated}
             />
           </div>
+
+          {/* Live Customer-Partner Order Chat (Enabled when partner is assigned) */}
+          {order.assignedPartner && (
+            <OrderChatPanel orderId={order._id} defaultCollapsed={true} />
+          )}
 
           {/* Order Details Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4 border-t border-theme">

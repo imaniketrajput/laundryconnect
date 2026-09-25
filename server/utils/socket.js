@@ -1,9 +1,14 @@
 const jwt = require("jsonwebtoken");
 const Order = require("../models/Order");
 const DeliveryPartner = require("../models/DeliveryPartner");
+const Message = require("../models/Message");
 const { haversineDistance } = require("./routeOptimizer");
+const { sanitizeChatMessage } = require("./sanitize");
 
 let io;
+
+// In-memory rate limiting map for chat socket events (max 1 msg/sec per socket)
+const lastSocketChatTimes = new Map();
 
 const initSocket = (server) => {
   const { Server } = require("socket.io");
@@ -135,7 +140,101 @@ const initSocket = (server) => {
       }
     });
 
+    // ─── Live Customer-Partner Order Chat ──────────────────────────────────────
+    socket.on("sendChatMessage", async ({ orderId, text, token }) => {
+      try {
+        if (!token || !orderId || typeof text !== "string" || !text.trim()) {
+          console.warn("[Socket:Chat] sendChatMessage rejected: Missing or invalid parameters");
+          return;
+        }
+
+        // Rate limiting: max 1 message per second per socket connection
+        const now = Date.now();
+        const lastChatTime = lastSocketChatTimes.get(socket.id) || 0;
+        if (now - lastChatTime < 1000) {
+          console.warn(`[Socket:Chat] sendChatMessage rejected: Rate limit exceeded for socket ${socket.id}`);
+          return;
+        }
+        lastSocketChatTimes.set(socket.id, now);
+
+        // 1. Verify JWT token
+        let decoded;
+        try {
+          decoded = jwt.verify(token, process.env.JWT_SECRET);
+        } catch (jwtErr) {
+          console.warn("[Socket:Chat] sendChatMessage rejected: Invalid or expired token:", jwtErr.message);
+          return;
+        }
+
+        // 2. Validate text length (max 1000 chars)
+        const trimmedText = text.trim();
+        if (trimmedText.length === 0 || trimmedText.length > 1000) {
+          console.warn(`[Socket:Chat] sendChatMessage rejected: Invalid length (${trimmedText.length})`);
+          return;
+        }
+
+        // 3. Sanitize text server-side (strip/escape HTML for basic XSS prevention)
+        const sanitizedText = sanitizeChatMessage(trimmedText);
+
+        // 4. Fetch order from main transactional database
+        const order = await Order.findById(orderId);
+        if (!order) {
+          console.warn(`[Socket:Chat] sendChatMessage rejected: Order ${orderId} not found`);
+          return;
+        }
+
+        // 5. Verify sender is either customer or assigned partner (reject silently/log only)
+        const isCustomer = order.customer && order.customer.toString() === decoded.id;
+        let isAssignedPartner = false;
+        if (order.assignedPartner) {
+          if (order.assignedPartner.toString() === decoded.id) {
+            isAssignedPartner = true;
+          } else {
+            const partnerDoc = await DeliveryPartner.findOne({ user: decoded.id });
+            if (partnerDoc && order.assignedPartner.toString() === partnerDoc._id.toString()) {
+              isAssignedPartner = true;
+            }
+          }
+        }
+
+        if (!isCustomer && !isAssignedPartner) {
+          console.warn(`[Socket:Chat] sendChatMessage rejected: User ${decoded.id} is neither customer nor assigned partner for order ${orderId}`);
+          return;
+        }
+
+        const senderRole = isCustomer ? "customer" : "partner";
+
+        // 6. Check separate Message model availability
+        if (!Message) {
+          console.warn("[Socket:Chat] sendChatMessage dropped: Chat DB model is not available");
+          return;
+        }
+
+        // 7. Save message to separate chat database
+        const savedMessage = await Message.create({
+          order: order._id,
+          sender: decoded.id,
+          senderRole,
+          text: sanitizedText,
+          createdAt: new Date(),
+        });
+
+        // 8. Broadcast to order room
+        getIO().to(orderId.toString()).emit("newChatMessage", {
+          _id: savedMessage._id,
+          order: order._id,
+          sender: decoded.id,
+          senderRole,
+          text: savedMessage.text,
+          createdAt: savedMessage.createdAt,
+        });
+      } catch (err) {
+        console.error("[Socket:Chat] Error in sendChatMessage handler:", err.message);
+      }
+    });
+
     socket.on("disconnect", () => {
+      lastSocketChatTimes.delete(socket.id);
       console.log("Client disconnected:", socket.id);
     });
   });
