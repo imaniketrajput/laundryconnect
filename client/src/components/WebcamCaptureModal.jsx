@@ -159,10 +159,10 @@ const WebcamCaptureModal = ({ isOpen, onClose, onCapture, title = 'Take Photo wi
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 15 }}
           transition={{ duration: 0.2 }}
-          className="bg-theme-card border border-theme rounded-3xl w-full max-w-md overflow-hidden shadow-2xl relative"
+          className="bg-theme-card border border-theme rounded-3xl w-full max-w-md overflow-hidden shadow-2xl relative max-h-[92dvh] flex flex-col"
         >
           {/* Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-theme">
+          <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-theme shrink-0">
             <div className="flex items-center space-x-2">
               <div className="p-2 rounded-xl bg-theme-accent-light text-theme-accent">
                 <Video className="w-4 h-4" />
@@ -179,7 +179,7 @@ const WebcamCaptureModal = ({ isOpen, onClose, onCapture, title = 'Take Photo wi
           </div>
 
           {/* Viewfinder Area */}
-          <div className="p-6 space-y-4">
+          <div className="p-4 sm:p-6 space-y-3 sm:space-y-4 overflow-y-auto">
             <div className="relative w-full aspect-square bg-black rounded-2xl overflow-hidden border-2 border-theme flex items-center justify-center shadow-inner">
               {loading && !error && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-theme-card/90 space-y-3 z-10">

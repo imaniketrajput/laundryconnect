@@ -158,9 +158,9 @@ const PayNowModal = ({ order, onClose, onSuccess }) => {
       onClick={handleOverlayClick}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm px-4"
     >
-      <div className="relative bg-theme-card text-theme-primary rounded-3xl shadow-2xl w-full max-w-md border border-theme overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+      <div className="relative bg-theme-card text-theme-primary rounded-3xl shadow-2xl w-full max-w-md border border-theme overflow-hidden animate-in fade-in zoom-in-95 duration-150 max-h-[90dvh] flex flex-col">
         {/* Header */}
-        <div className="bg-theme-hero p-6 text-theme-primary border-b border-theme relative">
+        <div className="bg-theme-hero p-4 sm:p-6 text-theme-primary border-b border-theme relative shrink-0">
           <button
             onClick={onClose}
             disabled={submitting || verifying}
@@ -176,7 +176,7 @@ const PayNowModal = ({ order, onClose, onSuccess }) => {
           <p className="text-xs font-mono text-theme-muted mt-1 truncate">{order._id}</p>
         </div>
 
-        <div className="p-6 space-y-5">
+        <div className="p-4 sm:p-6 space-y-4 sm:space-y-5 overflow-y-auto">
           {/* Amount Due Card with full cost breakdown */}
           <div className="bg-theme-elevated rounded-2xl p-4 border border-theme space-y-2.5">
             <div className="flex items-center justify-between">
@@ -329,7 +329,7 @@ const ReviewWidget = ({ orderId, existingRating, existingComment, onSubmitted })
         placeholder="Share your experience (optional)…"
         value={comment}
         onChange={(e) => setComment(e.target.value)}
-        className="w-full text-xs bg-theme-surface border border-theme rounded-xl p-3 resize-none text-theme-primary placeholder-theme-muted focus:outline-none focus:border-theme-accent transition-colors"
+        className="w-full text-base sm:text-xs bg-theme-surface border border-theme rounded-xl p-3 resize-none text-theme-primary placeholder-theme-muted focus:outline-none focus:border-theme-accent transition-colors"
       />
 
       {error && (
@@ -448,7 +448,7 @@ const MyOrders = () => {
           {orders.map((order) => (
             <div
               key={order._id}
-              className="bg-theme-card rounded-3xl border border-theme shadow-theme-sm p-6 space-y-6 hover:shadow-theme-md transition-all theme-card-hover"
+              className="bg-theme-card rounded-3xl border border-theme shadow-theme-sm p-4 sm:p-6 space-y-5 sm:space-y-6 hover:shadow-theme-md transition-all theme-card-hover"
             >
               {/* ── Card Header ───────────────────────────────────────── */}
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center pb-4 border-b border-theme gap-4">
@@ -475,10 +475,10 @@ const MyOrders = () => {
                 </div>
 
                 {/* Right: amount + payment action */}
-                <div className="flex flex-col items-end gap-2">
-                  <div className="text-right">
+                <div className="flex flex-row sm:flex-col items-center sm:items-end justify-between sm:justify-start w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-theme/50 gap-2">
+                  <div className="text-left sm:text-right">
                     <span className="text-xs text-theme-muted block font-bold uppercase tracking-wider">Total Value</span>
-                    <span className="text-2xl font-black text-theme-primary">₹{order.totalAmount}</span>
+                    <span className="text-xl sm:text-2xl font-black text-theme-primary">₹{order.totalAmount}</span>
                   </div>
 
                   {/* ── Payment buttons ── */}

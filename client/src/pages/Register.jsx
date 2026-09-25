@@ -53,7 +53,7 @@ const Register = () => {
   };
 
   return (
-    <div className="min-h-[85vh] flex flex-col justify-center py-12 sm:px-6 lg:px-8 bg-theme-bg text-theme-primary transition-colors duration-200">
+    <div className="min-h-[85vh] flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 bg-theme-bg text-theme-primary transition-colors duration-200">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <div className="flex justify-center">
           <div className="bg-theme-elevated p-3 rounded-2xl text-theme-accent border border-theme shadow-theme-md">
@@ -72,7 +72,7 @@ const Register = () => {
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-theme-card py-8 px-4 shadow-theme-md sm:rounded-3xl sm:px-10 border border-theme">
+        <div className="bg-theme-card py-8 px-4 sm:px-10 shadow-theme-md rounded-2xl sm:rounded-3xl border border-theme">
           {error && (
             <div className="mb-6 flex items-center space-x-2 bg-red-500/10 border border-red-500/30 text-red-500 p-3.5 rounded-xl text-sm">
               <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0" />
@@ -88,7 +88,7 @@ const Register = () => {
                 <button
                   type="button"
                   onClick={() => handleRoleChange('customer')}
-                  className={`py-2 rounded-xl text-sm font-bold transition-all duration-300 ${
+                  className={`py-2.5 sm:py-2 rounded-xl text-sm font-bold transition-all duration-300 ${
                     formData.role === 'customer'
                       ? 'bg-theme-card text-theme-primary shadow-sm border border-theme'
                       : 'text-theme-muted hover:text-theme-primary'
@@ -99,7 +99,7 @@ const Register = () => {
                 <button
                   type="button"
                   onClick={() => handleRoleChange('partner')}
-                  className={`py-2 rounded-xl text-sm font-bold transition-all duration-300 ${
+                  className={`py-2.5 sm:py-2 rounded-xl text-sm font-bold transition-all duration-300 ${
                     formData.role === 'partner'
                       ? 'bg-theme-card text-theme-primary shadow-sm border border-theme'
                       : 'text-theme-muted hover:text-theme-primary'
@@ -123,7 +123,7 @@ const Register = () => {
                   required
                   value={formData.name}
                   onChange={handleChange}
-                  className="block w-full pl-10 pr-3 py-2.5 bg-theme-elevated border border-theme rounded-xl text-theme-primary placeholder-theme-muted focus:outline-none focus:ring-2 focus:ring-theme-accent sm:text-sm font-sans"
+                  className="block w-full pl-10 pr-3 py-2.5 bg-theme-elevated border border-theme rounded-xl text-theme-primary placeholder-theme-muted focus:outline-none focus:ring-2 focus:ring-theme-accent text-base sm:text-sm font-sans"
                   placeholder="John Doe"
                 />
               </div>
@@ -142,7 +142,7 @@ const Register = () => {
                   required
                   value={formData.email}
                   onChange={handleChange}
-                  className="block w-full pl-10 pr-3 py-2.5 bg-theme-elevated border border-theme rounded-xl text-theme-primary placeholder-theme-muted focus:outline-none focus:ring-2 focus:ring-theme-accent sm:text-sm font-sans"
+                  className="block w-full pl-10 pr-3 py-2.5 bg-theme-elevated border border-theme rounded-xl text-theme-primary placeholder-theme-muted focus:outline-none focus:ring-2 focus:ring-theme-accent text-base sm:text-sm font-sans"
                   placeholder="john@example.com"
                 />
               </div>
@@ -161,7 +161,7 @@ const Register = () => {
                   required
                   value={formData.password}
                   onChange={handleChange}
-                  className="block w-full pl-10 pr-3 py-2.5 bg-theme-elevated border border-theme rounded-xl text-theme-primary placeholder-theme-muted focus:outline-none focus:ring-2 focus:ring-theme-accent sm:text-sm font-sans"
+                  className="block w-full pl-10 pr-3 py-2.5 bg-theme-elevated border border-theme rounded-xl text-theme-primary placeholder-theme-muted focus:outline-none focus:ring-2 focus:ring-theme-accent text-base sm:text-sm font-sans"
                   placeholder="••••••••"
                 />
               </div>
@@ -180,7 +180,7 @@ const Register = () => {
                   required
                   value={formData.phone}
                   onChange={handleChange}
-                  className="block w-full pl-10 pr-3 py-2.5 bg-theme-elevated border border-theme rounded-xl text-theme-primary placeholder-theme-muted focus:outline-none focus:ring-2 focus:ring-theme-accent sm:text-sm font-sans"
+                  className="block w-full pl-10 pr-3 py-2.5 bg-theme-elevated border border-theme rounded-xl text-theme-primary placeholder-theme-muted focus:outline-none focus:ring-2 focus:ring-theme-accent text-base sm:text-sm font-sans"
                   placeholder="+91 98765 43210"
                 />
               </div>
@@ -199,7 +199,7 @@ const Register = () => {
                   rows="3"
                   value={formData.address}
                   onChange={handleChange}
-                  className="block w-full pl-10 pr-3 py-2.5 bg-theme-elevated border border-theme rounded-xl text-theme-primary placeholder-theme-muted focus:outline-none focus:ring-2 focus:ring-theme-accent sm:text-sm font-sans"
+                  className="block w-full pl-10 pr-3 py-2.5 bg-theme-elevated border border-theme rounded-xl text-theme-primary placeholder-theme-muted focus:outline-none focus:ring-2 focus:ring-theme-accent text-base sm:text-sm font-sans"
                   placeholder="House No, Street, Locality, City..."
                 ></textarea>
               </div>

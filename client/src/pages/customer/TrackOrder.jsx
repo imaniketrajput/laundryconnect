@@ -116,7 +116,7 @@ const TrackOrder = () => {
               placeholder="e.g. 64b8f520c15efc1c9c8bc84f"
               value={orderId}
               onChange={(e) => setOrderId(e.target.value)}
-              className="block w-full pl-10 pr-4 py-3 bg-theme-elevated border border-theme rounded-2xl text-theme-primary placeholder-theme-muted focus:outline-none focus:ring-2 focus:ring-theme-accent text-sm font-mono"
+              className="block w-full pl-10 pr-4 py-3 bg-theme-elevated border border-theme rounded-2xl text-theme-primary placeholder-theme-muted focus:outline-none focus:ring-2 focus:ring-theme-accent text-base sm:text-sm font-mono"
             />
           </div>
           <button
@@ -224,24 +224,24 @@ const TrackOrder = () => {
           </div>
 
           {/* Cost Breakdown */}
-          <div className="bg-theme-elevated/60 rounded-2xl p-4 border border-theme space-y-2">
+          <div className="bg-theme-elevated/60 rounded-2xl p-3.5 sm:p-4 border border-theme space-y-2">
             <h4 className="text-xs font-bold text-theme-primary uppercase tracking-wider mb-2">Cost Breakdown</h4>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-              <div className="bg-theme-card p-3 rounded-xl border border-theme">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 text-[11px] sm:text-xs">
+              <div className="bg-theme-card p-2.5 sm:p-3 rounded-xl border border-theme">
                 <span className="text-theme-muted block">Items Subtotal</span>
-                <span className="font-bold text-theme-primary text-sm mt-0.5 block">₹{order.itemsSubtotal ?? order.totalAmount}</span>
+                <span className="font-bold text-theme-primary text-xs sm:text-sm mt-0.5 block">₹{order.itemsSubtotal ?? order.totalAmount}</span>
               </div>
-              <div className="bg-theme-card p-3 rounded-xl border border-theme">
-                <span className="text-theme-muted block">Delivery Fee{order.deliveryDistanceKm ? ` (${order.deliveryDistanceKm} km)` : ''}</span>
-                <span className="font-bold text-theme-primary text-sm mt-0.5 block">{order.deliveryCharge ? `₹${order.deliveryCharge}` : 'FREE'}</span>
+              <div className="bg-theme-card p-2.5 sm:p-3 rounded-xl border border-theme">
+                <span className="text-theme-muted block truncate">Delivery Fee{order.deliveryDistanceKm ? ` (${order.deliveryDistanceKm} km)` : ''}</span>
+                <span className="font-bold text-theme-primary text-xs sm:text-sm mt-0.5 block">{order.deliveryCharge ? `₹${order.deliveryCharge}` : 'FREE'}</span>
               </div>
-              <div className="bg-theme-card p-3 rounded-xl border border-theme">
-                <span className="text-theme-muted block">Express Service</span>
-                <span className="font-bold text-theme-accent text-sm mt-0.5 block">{order.isExpress ? `+₹${order.expressFee || 150}` : 'Standard (₹0)'}</span>
+              <div className="bg-theme-card p-2.5 sm:p-3 rounded-xl border border-theme">
+                <span className="text-theme-muted block truncate">Express Service</span>
+                <span className="font-bold text-theme-accent text-xs sm:text-sm mt-0.5 block">{order.isExpress ? `+₹${order.expressFee || 150}` : 'Standard (₹0)'}</span>
               </div>
-              <div className="bg-theme-card p-3 rounded-xl border border-theme-accent/30 bg-theme-accent-light/10">
+              <div className="bg-theme-card p-2.5 sm:p-3 rounded-xl border border-theme-accent/30 bg-theme-accent-light/10">
                 <span className="text-theme-muted block">Total Payable</span>
-                <span className="font-black text-theme-accent text-sm mt-0.5 block">₹{order.totalAmount}</span>
+                <span className="font-black text-theme-accent text-xs sm:text-sm mt-0.5 block">₹{order.totalAmount}</span>
               </div>
             </div>
           </div>

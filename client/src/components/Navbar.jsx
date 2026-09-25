@@ -61,7 +61,7 @@ const Navbar = () => {
               <div className="p-2 rounded-xl bg-theme-elevated text-theme-accent border border-theme group-hover:scale-105 transition-transform duration-300">
                 <Sparkles className="h-6 w-6" />
               </div>
-              <span className="text-2xl font-bold tracking-tight text-theme-primary font-poppins">
+              <span className="text-xl sm:text-2xl font-bold tracking-tight text-theme-primary font-poppins">
                 Laundry<span className="text-theme-accent">Connect</span>
               </span>
             </Link>
@@ -161,7 +161,7 @@ const Navbar = () => {
             <ThemeSwitcher />
             <button
               onClick={() => setIsOpen(!isOpen)}
-              className="inline-flex items-center justify-center p-2 rounded-xl text-theme-primary hover:bg-theme-elevated focus:outline-none transition-colors"
+              className="inline-flex items-center justify-center p-2.5 sm:p-2 rounded-xl text-theme-primary hover:bg-theme-elevated focus:outline-none transition-colors"
               aria-label="Toggle navigation menu"
             >
               {isOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}

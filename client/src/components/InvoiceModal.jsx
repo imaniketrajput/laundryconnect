@@ -121,7 +121,7 @@ const InvoiceModal = ({ orderId, onClose }) => {
 
           {/* ─── Invoice Content ─────────────────────────────────────── */}
           {!loading && invoice && (
-            <div className="p-8 space-y-6" id="invoice-content">
+            <div className="p-4 sm:p-8 space-y-4 sm:space-y-6" id="invoice-content">
 
               {/* Company Header */}
               <div className="text-center border-b border-theme pb-6">
@@ -171,60 +171,62 @@ const InvoiceModal = ({ orderId, onClose }) => {
 
               {/* Items Table */}
               <div className="border border-theme rounded-2xl overflow-hidden">
-                <table className="w-full text-left text-xs">
-                  <thead>
-                    <tr className="bg-theme-elevated text-theme-muted font-bold uppercase tracking-wider">
-                      <th className="py-3 px-4">Service</th>
-                      <th className="py-3 px-4 text-center">Qty / Unit</th>
-                      <th className="py-3 px-4 text-right">Rate</th>
-                      <th className="py-3 px-4 text-right">Subtotal</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-theme">
-                    {(invoice.items || []).map((item, idx) => (
-                      <tr key={idx} className="hover:bg-theme-elevated/40 transition-colors">
-                        <td className="py-3 px-4 font-semibold text-theme-primary">{item.name || item.service}</td>
-                        <td className="py-3 px-4 text-center text-theme-muted">
-                          {item.quantity} {item.unit || 'pc'}
-                        </td>
-                        <td className="py-3 px-4 text-right text-theme-muted">₹{item.pricePerUnit}</td>
-                        <td className="py-3 px-4 text-right font-bold text-theme-primary">
-                          ₹{(item.quantity * item.pricePerUnit).toFixed(2)}
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[340px] sm:min-w-full text-left text-xs">
+                    <thead>
+                      <tr className="bg-theme-elevated text-theme-muted font-bold uppercase tracking-wider">
+                        <th className="py-3 px-4">Service</th>
+                        <th className="py-3 px-4 text-center">Qty / Unit</th>
+                        <th className="py-3 px-4 text-right">Rate</th>
+                        <th className="py-3 px-4 text-right">Subtotal</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-theme">
+                      {(invoice.items || []).map((item, idx) => (
+                        <tr key={idx} className="hover:bg-theme-elevated/40 transition-colors">
+                          <td className="py-3 px-4 font-semibold text-theme-primary">{item.name || item.service}</td>
+                          <td className="py-3 px-4 text-center text-theme-muted">
+                            {item.quantity} {item.unit || 'pc'}
+                          </td>
+                          <td className="py-3 px-4 text-right text-theme-muted">₹{item.pricePerUnit}</td>
+                          <td className="py-3 px-4 text-right font-bold text-theme-primary">
+                            ₹{(item.quantity * item.pricePerUnit).toFixed(2)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot className="divide-y divide-theme">
+                      <tr className="bg-theme-elevated/40 text-theme-muted">
+                        <td colSpan={3} className="py-2.5 px-4 font-semibold">Items Subtotal</td>
+                        <td className="py-2.5 px-4 text-right font-bold text-theme-primary">
+                          ₹{(invoice.itemsSubtotal ?? invoice.totalAmount).toFixed(2)}
                         </td>
                       </tr>
-                    ))}
-                  </tbody>
-                  <tfoot className="divide-y divide-theme">
-                    <tr className="bg-theme-elevated/40 text-theme-muted">
-                      <td colSpan={3} className="py-2.5 px-4 font-semibold">Items Subtotal</td>
-                      <td className="py-2.5 px-4 text-right font-bold text-theme-primary">
-                        ₹{(invoice.itemsSubtotal ?? invoice.totalAmount).toFixed(2)}
-                      </td>
-                    </tr>
-                    <tr className="bg-theme-elevated/40 text-theme-muted">
-                      <td colSpan={3} className="py-2.5 px-4 font-semibold">
-                        Delivery Charge{invoice.deliveryDistanceKm ? ` (${invoice.deliveryDistanceKm} km)` : ''}
-                      </td>
-                      <td className="py-2.5 px-4 text-right font-bold text-theme-primary">
-                        {invoice.deliveryCharge ? `₹${invoice.deliveryCharge.toFixed(2)}` : 'FREE'}
-                      </td>
-                    </tr>
-                    {invoice.isExpress && (
-                      <tr className="bg-theme-elevated/40 text-theme-accent">
-                        <td colSpan={3} className="py-2.5 px-4 font-semibold">⚡ Express Service Fee</td>
-                        <td className="py-2.5 px-4 text-right font-bold">
-                          +₹{(invoice.expressFee || 150).toFixed(2)}
+                      <tr className="bg-theme-elevated/40 text-theme-muted">
+                        <td colSpan={3} className="py-2.5 px-4 font-semibold">
+                          Delivery Charge{invoice.deliveryDistanceKm ? ` (${invoice.deliveryDistanceKm} km)` : ''}
+                        </td>
+                        <td className="py-2.5 px-4 text-right font-bold text-theme-primary">
+                          {invoice.deliveryCharge ? `₹${invoice.deliveryCharge.toFixed(2)}` : 'FREE'}
                         </td>
                       </tr>
-                    )}
-                    <tr className="bg-theme-elevated border-t-2 border-theme text-theme-primary">
-                      <td colSpan={3} className="py-3.5 px-4 font-bold text-sm tracking-wide">Total Amount Paid</td>
-                      <td className="py-3.5 px-4 text-right font-black text-xl text-theme-accent">
-                        ₹{invoice.totalAmount.toFixed(2)}
-                      </td>
-                    </tr>
-                  </tfoot>
-                </table>
+                      {invoice.isExpress && (
+                        <tr className="bg-theme-elevated/40 text-theme-accent">
+                          <td colSpan={3} className="py-2.5 px-4 font-semibold">⚡ Express Service Fee</td>
+                          <td className="py-2.5 px-4 text-right font-bold">
+                            +₹{(invoice.expressFee || 150).toFixed(2)}
+                          </td>
+                        </tr>
+                      )}
+                      <tr className="bg-theme-elevated border-t-2 border-theme text-theme-primary">
+                        <td colSpan={3} className="py-3.5 px-4 font-bold text-sm tracking-wide">Total Amount Paid</td>
+                        <td className="py-3.5 px-4 text-right font-black text-xl text-theme-accent">
+                          ₹{invoice.totalAmount.toFixed(2)}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
               </div>
 
               {/* Footer note */}
@@ -233,12 +235,12 @@ const InvoiceModal = ({ orderId, onClose }) => {
               </p>
 
               {/* Actions Bar */}
-              <div className="no-print flex flex-wrap justify-center gap-3 pt-2">
+              <div className="no-print flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-2.5 sm:gap-3 pt-2">
                 <button
                   type="button"
                   onClick={handleDownloadPdf}
                   disabled={downloadingPdf}
-                  className="flex items-center space-x-2 px-5 py-2.5 bg-theme-accent text-[var(--accent-text)] rounded-2xl text-xs font-bold shadow-theme-accent transition-colors theme-btn-hover disabled:opacity-50"
+                  className="flex items-center justify-center space-x-2 w-full sm:w-auto px-5 py-2.5 bg-theme-accent text-[var(--accent-text)] rounded-2xl text-xs font-bold shadow-theme-accent transition-colors theme-btn-hover disabled:opacity-50"
                 >
                   <Download className="h-4 w-4" />
                   <span>{downloadingPdf ? 'Downloading…' : 'Download PDF'}</span>
@@ -246,7 +248,7 @@ const InvoiceModal = ({ orderId, onClose }) => {
                 <button
                   type="button"
                   onClick={() => window.print()}
-                  className="flex items-center space-x-2 px-5 py-2.5 bg-theme-elevated border border-theme text-theme-primary hover:bg-theme-surface rounded-2xl text-xs font-bold transition-colors"
+                  className="flex items-center justify-center space-x-2 w-full sm:w-auto px-5 py-2.5 bg-theme-elevated border border-theme text-theme-primary hover:bg-theme-surface rounded-2xl text-xs font-bold transition-colors"
                 >
                   <Printer className="h-4 w-4" />
                   <span>Print Invoice</span>

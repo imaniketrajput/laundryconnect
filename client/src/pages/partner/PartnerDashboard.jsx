@@ -416,9 +416,9 @@ const PartnerDashboard = () => {
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+          <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3 w-full lg:w-auto">
             {/* Order Selector */}
-            <div className="flex-grow sm:flex-grow-0 min-w-[220px]">
+            <div className="w-full sm:w-auto flex-grow sm:flex-grow-0 sm:min-w-[220px]">
               <label className="block text-[10px] font-bold uppercase tracking-wider text-theme-muted mb-1">
                 Active Order Target
               </label>
@@ -426,7 +426,7 @@ const PartnerDashboard = () => {
                 value={activeTrackingOrderId}
                 onChange={(e) => setActiveTrackingOrderId(e.target.value)}
                 disabled={queue.length === 0}
-                className="w-full text-xs bg-theme-elevated border border-theme rounded-xl px-3 py-2 text-theme-primary font-semibold focus:outline-none focus:border-theme-accent"
+                className="w-full text-base sm:text-xs bg-theme-elevated border border-theme rounded-xl px-3 py-2 text-theme-primary font-semibold focus:outline-none focus:border-theme-accent"
               >
                 {queue.length === 0 ? (
                   <option value="">No orders in queue</option>
@@ -441,12 +441,12 @@ const PartnerDashboard = () => {
             </div>
 
             {/* Toggle Button */}
-            <div className="self-end">
+            <div className="self-stretch sm:self-end">
               <button
                 type="button"
                 onClick={toggleLocationSharing}
                 disabled={queue.length === 0 && !activeTrackingOrderId}
-                className={`flex items-center space-x-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-theme-sm disabled:opacity-50 ${
+                className={`flex items-center justify-center space-x-2 w-full sm:w-auto px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-theme-sm disabled:opacity-50 ${
                   isSharingLocation
                     ? 'bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/30'
                     : 'bg-theme-accent text-[var(--accent-text)] hover:opacity-95 shadow-theme-accent'
@@ -673,7 +673,7 @@ const PartnerDashboard = () => {
                                 disabled={rs.updating}
                                 value={order.currentStatus}
                                 onChange={(e) => handleStatusChange(order._id, e.target.value)}
-                                className="text-xs bg-theme-elevated border border-theme rounded-xl px-2.5 py-1.5 text-theme-primary font-semibold focus:outline-none focus:border-theme-accent transition-colors disabled:opacity-60"
+                                className="text-base sm:text-xs bg-theme-elevated border border-theme rounded-xl px-2.5 py-2 sm:py-1.5 text-theme-primary font-semibold focus:outline-none focus:border-theme-accent transition-colors disabled:opacity-60 h-10 sm:h-auto"
                               >
                                 {PARTNER_STATUSES.map((s) => (
                                   <option key={s} value={s}>{s}</option>

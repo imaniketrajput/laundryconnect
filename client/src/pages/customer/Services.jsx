@@ -144,17 +144,17 @@ const Services = () => {
             placeholder="Search for dry cleaning, ironing, shoes..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="block w-full pl-12 pr-4 py-3.5 bg-theme-elevated border border-theme rounded-2xl text-theme-primary placeholder-theme-muted focus:outline-none focus:ring-2 focus:ring-theme-accent text-sm transition-colors"
+            className="block w-full pl-12 pr-4 py-3.5 bg-theme-elevated border border-theme rounded-2xl text-theme-primary placeholder-theme-muted focus:outline-none focus:ring-2 focus:ring-theme-accent text-base sm:text-sm transition-colors"
           />
         </div>
 
         {/* Category Filters */}
-        <div className="flex flex-wrap gap-2 pt-1">
+        <div className="flex overflow-x-auto no-scrollbar sm:flex-wrap gap-2 pt-1 pb-1">
           {categories.map(cat => (
             <button
               key={cat}
               onClick={() => setSelectedCategory(cat)}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200 ${
+              className={`px-4 py-2 rounded-xl text-xs font-bold shrink-0 sm:shrink transition-all duration-200 ${
                 selectedCategory === cat
                   ? 'bg-theme-accent text-[var(--accent-text)] shadow-sm'
                   : 'bg-theme-elevated text-theme-muted border border-theme hover:bg-theme-surface hover:text-theme-primary'
@@ -193,27 +193,27 @@ const Services = () => {
 
       {/* Floating Cart Drawer */}
       {totalItems > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-2xl bg-theme-surface text-theme-primary shadow-2xl rounded-3xl border border-theme p-5 flex items-center justify-between z-40 transition-all duration-300">
-          <div className="flex items-center space-x-4">
-            <div className="bg-theme-accent-light p-3 rounded-2xl text-theme-accent">
-              <ShoppingBag className="h-6 w-6" />
+        <div className="fixed bottom-0 left-0 right-0 w-full sm:bottom-6 sm:left-1/2 sm:-translate-x-1/2 sm:w-[90%] sm:max-w-2xl bg-theme-surface text-theme-primary shadow-2xl rounded-t-3xl sm:rounded-3xl border-t sm:border border-theme p-3.5 sm:p-5 flex items-center justify-between z-40 transition-all duration-300">
+          <div className="flex items-center space-x-2.5 sm:space-x-4 min-w-0">
+            <div className="bg-theme-accent-light p-2 sm:p-3 rounded-xl sm:rounded-2xl text-theme-accent shrink-0">
+              <ShoppingBag className="h-5 w-5 sm:h-6 sm:w-6" />
             </div>
-            <div>
-              <p className="text-sm font-bold font-poppins">{totalItems} Item{totalItems > 1 ? 's' : ''} Selected</p>
-              <p className="text-xs text-theme-muted">Subtotal: <span className="text-theme-accent font-extrabold text-sm">₹{totalPrice}</span></p>
+            <div className="min-w-0">
+              <p className="text-xs sm:text-sm font-bold font-poppins truncate">{totalItems} Item{totalItems > 1 ? 's' : ''} Selected</p>
+              <p className="text-[11px] sm:text-xs text-theme-muted">Subtotal: <span className="text-theme-accent font-extrabold text-xs sm:text-sm">₹{totalPrice}</span></p>
             </div>
           </div>
           
           <button
             onClick={handleProceed}
-            className="flex items-center space-x-2 px-6 py-3 rounded-2xl text-sm font-bold shadow-md transition-all theme-btn-hover"
+            className="flex items-center space-x-1.5 sm:space-x-2 px-4 py-2.5 sm:px-6 sm:py-3 rounded-xl sm:rounded-2xl text-xs sm:text-sm font-bold shadow-md transition-all theme-btn-hover shrink-0"
             style={{
               backgroundColor: 'var(--accent)',
               color: 'var(--accent-text)',
             }}
           >
-            <span>Proceed to Checkout</span>
-            <ArrowRight className="h-4 w-4" />
+            <span><span className="hidden sm:inline">Proceed to </span>Checkout</span>
+            <ArrowRight className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
           </button>
         </div>
       )}

@@ -33,20 +33,20 @@ const ServiceCard = ({ service, onAdd, onRemove, quantity = 0, compact = false }
 
         <div className="flex items-center space-x-2">
           {quantity > 0 ? (
-            <div className="flex items-center bg-theme-elevated border border-theme rounded-lg p-1">
+            <div className="flex items-center bg-theme-elevated border border-theme rounded-lg p-0.5 sm:p-1">
               <button
                 type="button"
                 onClick={onRemove}
-                className="p-1 text-theme-muted hover:text-theme-primary hover:bg-theme-surface rounded-md transition-colors"
+                className="p-2 sm:p-1 min-w-[32px] min-h-[32px] sm:min-w-0 sm:min-h-0 flex items-center justify-center text-theme-muted hover:text-theme-primary hover:bg-theme-surface rounded-md transition-colors"
                 aria-label={`Decrease quantity of ${name}`}
               >
                 <Minus className="h-3 w-3" />
               </button>
-              <span className="px-3 text-xs font-bold text-theme-primary">{quantity}</span>
+              <span className="px-2 sm:px-3 text-xs font-bold text-theme-primary">{quantity}</span>
               <button
                 type="button"
                 onClick={onAdd}
-                className="p-1 text-theme-muted hover:text-theme-primary hover:bg-theme-surface rounded-md transition-colors"
+                className="p-2 sm:p-1 min-w-[32px] min-h-[32px] sm:min-w-0 sm:min-h-0 flex items-center justify-center text-theme-muted hover:text-theme-primary hover:bg-theme-surface rounded-md transition-colors"
                 aria-label={`Increase quantity of ${name}`}
               >
                 <Plus className="h-3 w-3" />
@@ -99,20 +99,20 @@ const ServiceCard = ({ service, onAdd, onRemove, quantity = 0, compact = false }
 
           <div>
             {quantity > 0 ? (
-              <div className="flex items-center bg-theme-elevated border border-theme rounded-xl p-1.5">
+              <div className="flex items-center bg-theme-elevated border border-theme rounded-xl p-1 sm:p-1.5">
                 <button
                   type="button"
                   onClick={onRemove}
-                  className="p-1 text-theme-muted hover:text-theme-primary hover:bg-theme-surface rounded-md transition-colors"
+                  className="p-2 sm:p-1 min-w-[36px] min-h-[36px] sm:min-w-0 sm:min-h-0 flex items-center justify-center text-theme-muted hover:text-theme-primary hover:bg-theme-surface rounded-md transition-colors"
                   aria-label={`Decrease quantity of ${name}`}
                 >
                   <Minus className="h-4 w-4" />
                 </button>
-                <span className="px-4 font-bold text-theme-primary">{quantity}</span>
+                <span className="px-3 sm:px-4 font-bold text-theme-primary text-sm sm:text-base">{quantity}</span>
                 <button
                   type="button"
                   onClick={onAdd}
-                  className="p-1 text-theme-muted hover:text-theme-primary hover:bg-theme-surface rounded-md transition-colors"
+                  className="p-2 sm:p-1 min-w-[36px] min-h-[36px] sm:min-w-0 sm:min-h-0 flex items-center justify-center text-theme-muted hover:text-theme-primary hover:bg-theme-surface rounded-md transition-colors"
                   aria-label={`Increase quantity of ${name}`}
                 >
                   <Plus className="h-4 w-4" />
@@ -122,7 +122,7 @@ const ServiceCard = ({ service, onAdd, onRemove, quantity = 0, compact = false }
               <button
                 type="button"
                 onClick={onAdd}
-                className="flex items-center space-x-1.5 px-4 py-2 bg-theme-elevated hover:bg-theme-accent hover:text-white border border-theme text-theme-primary rounded-xl text-sm font-semibold transition-all duration-200 theme-btn-hover"
+                className="flex items-center space-x-1.5 px-4 py-2.5 sm:py-2 bg-theme-elevated hover:bg-theme-accent hover:text-white border border-theme text-theme-primary rounded-xl text-sm font-semibold transition-all duration-200 theme-btn-hover"
               >
                 <Plus className="h-4 w-4 text-theme-accent group-hover:text-white" />
                 <span>Add to Order</span>

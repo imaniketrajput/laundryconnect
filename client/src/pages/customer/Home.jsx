@@ -77,7 +77,7 @@ const Home = () => {
               <span>Smart Laundry Care</span>
             </div>
 
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-tight font-poppins text-theme-hero">
+            <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-tight font-poppins text-theme-hero">
               Smart Laundry Pickup <br className="hidden sm:inline" />
               &amp; Delivery, <span className="text-theme-accent">Made Simple</span>
             </h1>
@@ -108,7 +108,7 @@ const Home = () => {
             </div>
 
             {/* Trust row */}
-            <div className="border-t border-white/15 pt-6 grid grid-cols-3 gap-4 text-xs font-semibold text-theme-hero-muted">
+            <div className="border-t border-white/15 pt-6 grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 text-xs font-semibold text-theme-hero-muted">
               <div className="flex items-center space-x-2">
                 <Clock className="h-5 w-5 text-theme-accent flex-shrink-0" />
                 <span>Fast 24h Express</span>
@@ -272,7 +272,7 @@ const Home = () => {
         </div>
 
         {/* Two-column: feature cards + real photo */}
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-10 items-stretch">
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 lg:gap-10 items-stretch">
           <div className="lg:col-span-3 grid grid-cols-1 sm:grid-cols-2 gap-6">
             {[
               {

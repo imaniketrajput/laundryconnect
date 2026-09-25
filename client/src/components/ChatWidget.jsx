@@ -137,6 +137,31 @@ const ChatWidget = () => {
 
   const location = useLocation();
 
+  // Dynamic cart detection on mobile to avoid overlapping the bottom checkout bar on /services
+  const [hasCart, setHasCart] = useState(false);
+
+  useEffect(() => {
+    const checkCart = () => {
+      try {
+        const stored = localStorage.getItem('laundry_cart');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          setHasCart(Object.keys(parsed).length > 0);
+          return;
+        }
+      } catch {}
+      setHasCart(false);
+    };
+
+    checkCart();
+    window.addEventListener('storage', checkCart);
+    const interval = setInterval(checkCart, 800);
+    return () => {
+      window.removeEventListener('storage', checkCart);
+      clearInterval(interval);
+    };
+  }, [location.pathname]);
+
   useEffect(() => {
     const updateDimensions = () => {
       // clientWidth represents visible viewport width strictly excluding scrollbars
@@ -340,8 +365,9 @@ const ChatWidget = () => {
   const TOP_CLEARANCE_BUFFER = 16;
   const minTopFloor = safeNavbarHeight + TOP_CLEARANCE_BUFFER;
 
-  // Bottom anchor offset: 6rem
-  const bottomOffsetRem = 6;
+  // Bottom anchor offset: 6rem (lifted on mobile if services cart is active)
+  const isServicesCartActive = location.pathname === '/services' && hasCart;
+  const bottomOffsetRem = !isSm && isServicesCartActive ? 9.5 : 6;
   const rootFontSize = typeof window !== 'undefined'
     ? parseFloat(getComputedStyle(document.documentElement).fontSize) || 16
     : 16;
@@ -359,7 +385,12 @@ const ChatWidget = () => {
   return (
     <>
       {/* Floating Action Launcher Button */}
-      <div className="fixed bottom-6 right-4 sm:right-6 z-[60]" style={{ zIndex: 60 }}>
+      <div 
+        className={`fixed z-[60] right-4 sm:right-6 transition-all duration-300 ${
+          isServicesCartActive ? 'bottom-20 sm:bottom-6' : 'bottom-6'
+        }`} 
+        style={{ zIndex: 60 }}
+      >
         <motion.button
           onClick={handleToggleOpen}
           aria-label={isOpen ? 'Close chat assistant' : 'Open chat assistant'}
@@ -440,7 +471,7 @@ const ChatWidget = () => {
                   onClick={handleResetChat}
                   title="Reset conversation"
                   aria-label="Reset conversation"
-                  className="p-1.5 rounded-lg text-theme-muted hover:text-theme-primary hover:bg-theme-elevated transition-colors"
+                  className="p-2 sm:p-1.5 rounded-lg text-theme-muted hover:text-theme-primary hover:bg-theme-elevated transition-colors"
                 >
                   <RotateCcw className="w-4 h-4" />
                 </button>
@@ -449,7 +480,7 @@ const ChatWidget = () => {
                   onClick={handleClose}
                   title="Close widget"
                   aria-label="Close widget"
-                  className="p-1.5 rounded-lg text-theme-muted hover:text-theme-primary hover:bg-theme-elevated transition-colors"
+                  className="p-2 sm:p-1.5 rounded-lg text-theme-muted hover:text-theme-primary hover:bg-theme-elevated transition-colors"
                 >
                   <X className="w-4 h-4" />
                 </button>

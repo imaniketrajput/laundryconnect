@@ -237,7 +237,7 @@ const AdminFleetMap = () => {
       )}
 
       {/* Map Container */}
-      <div className="relative w-full h-[480px] rounded-3xl overflow-hidden border border-theme shadow-theme-md">
+      <div className="relative w-full h-[340px] sm:h-[480px] rounded-3xl overflow-hidden border border-theme shadow-theme-md">
         <MapContainer
           center={defaultCenter}
           zoom={13}
@@ -252,7 +252,7 @@ const AdminFleetMap = () => {
         </MapContainer>
 
         {/* Legend Overlay */}
-        <div className="absolute bottom-3 left-3 z-[1000] bg-theme-card/90 backdrop-blur-md border border-theme p-2.5 rounded-2xl shadow-theme-sm text-[11px] flex flex-wrap items-center gap-3">
+        <div className="absolute bottom-3 left-3 z-[1000] bg-theme-card/90 backdrop-blur-md border border-theme p-2 sm:p-2.5 rounded-2xl shadow-theme-sm text-[10px] sm:text-[11px] flex flex-wrap items-center gap-2 sm:gap-3 max-w-[calc(100%-24px)]">
           <div className="flex items-center space-x-1.5">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block border border-white"></span>
             <span className="text-theme-primary font-semibold">Available Partner</span>

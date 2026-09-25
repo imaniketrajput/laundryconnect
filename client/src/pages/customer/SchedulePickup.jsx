@@ -540,7 +540,8 @@ const SchedulePickup = () => {
 
             {/* Line Items Table */}
             <div className="border border-theme rounded-2xl overflow-hidden">
-              <table className="w-full text-left text-xs">
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[340px] sm:min-w-full text-left text-xs">
                 <thead>
                   <tr className="bg-theme-elevated text-theme-muted font-bold uppercase tracking-wider">
                     <th className="py-3 px-4">Service</th>
@@ -584,6 +585,7 @@ const SchedulePickup = () => {
                   </tr>
                 </tfoot>
               </table>
+              </div>
             </div>
 
             {/* Tax Note */}
@@ -593,13 +595,13 @@ const SchedulePickup = () => {
             </div>
 
             {/* Actions Bar */}
-            <div className="no-print pt-2 flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center space-x-2">
+            <div className="no-print pt-2 flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center justify-between gap-3">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                 <button
                   type="button"
                   onClick={() => handleDownloadPdf(verifiedOrder._id, verifiedInvoice.invoiceId)}
                   disabled={downloadingPdf}
-                  className="flex items-center space-x-1.5 px-4 py-2.5 bg-theme-accent text-[var(--accent-text)] rounded-xl text-xs font-bold theme-btn-hover transition-colors shadow-theme-sm disabled:opacity-50"
+                  className="flex items-center justify-center space-x-1.5 px-4 py-2.5 bg-theme-accent text-[var(--accent-text)] rounded-xl text-xs font-bold theme-btn-hover transition-colors shadow-theme-sm disabled:opacity-50"
                 >
                   <Download className="h-4 w-4" />
                   <span>{downloadingPdf ? 'Downloading…' : 'Download Invoice (PDF)'}</span>
@@ -607,18 +609,18 @@ const SchedulePickup = () => {
                 <button
                   type="button"
                   onClick={handlePrint}
-                  className="flex items-center space-x-1.5 px-4 py-2.5 bg-theme-elevated border border-theme text-theme-primary hover:bg-theme-surface rounded-xl text-xs font-bold transition-colors"
+                  className="flex items-center justify-center space-x-1.5 px-4 py-2.5 bg-theme-elevated border border-theme text-theme-primary hover:bg-theme-surface rounded-xl text-xs font-bold transition-colors"
                 >
                   <Printer className="h-4 w-4" />
                   <span>Print Invoice</span>
                 </button>
               </div>
 
-              <div className="flex items-center space-x-2">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                 <button
                   type="button"
                   onClick={() => navigate(`/track?id=${verifiedOrder._id}`)}
-                  className="flex items-center space-x-1.5 px-4 py-2.5 bg-theme-elevated border border-theme text-theme-primary hover:text-theme-accent rounded-xl text-xs font-bold transition-colors"
+                  className="flex items-center justify-center space-x-1.5 px-4 py-2.5 bg-theme-elevated border border-theme text-theme-primary hover:text-theme-accent rounded-xl text-xs font-bold transition-colors"
                 >
                   <span>Track Order</span>
                   <ArrowRight className="h-3.5 w-3.5" />
@@ -626,7 +628,7 @@ const SchedulePickup = () => {
                 <button
                   type="button"
                   onClick={() => navigate('/my-orders')}
-                  className="flex items-center space-x-1.5 px-4 py-2.5 bg-theme-accent-light border border-theme-accent text-theme-accent rounded-xl text-xs font-bold transition-colors"
+                  className="flex items-center justify-center space-x-1.5 px-4 py-2.5 bg-theme-accent-light border border-theme-accent text-theme-accent rounded-xl text-xs font-bold transition-colors"
                 >
                   <span>My Orders</span>
                 </button>
@@ -708,7 +710,7 @@ const SchedulePickup = () => {
                         <button
                           type="button"
                           onClick={() => handleQtyChange(item.service._id, -1)}
-                          className="p-1 hover:bg-theme-surface rounded transition-colors text-theme-muted hover:text-theme-primary"
+                          className="p-2 sm:p-1 hover:bg-theme-surface rounded transition-colors text-theme-muted hover:text-theme-primary"
                           aria-label={`Decrease quantity of ${item.service.name}`}
                         >
                           <Minus className="h-3 w-3" />
@@ -717,7 +719,7 @@ const SchedulePickup = () => {
                         <button
                           type="button"
                           onClick={() => handleQtyChange(item.service._id, 1)}
-                          className="p-1 hover:bg-theme-surface rounded transition-colors text-theme-muted hover:text-theme-primary"
+                          className="p-2 sm:p-1 hover:bg-theme-surface rounded transition-colors text-theme-muted hover:text-theme-primary"
                           aria-label={`Increase quantity of ${item.service.name}`}
                         >
                           <Plus className="h-3 w-3" />
@@ -822,7 +824,7 @@ const SchedulePickup = () => {
                     onFocus={() => {
                       if (suggestions.length > 0) setShowSuggestions(true);
                     }}
-                    className="block w-full pl-10 pr-10 py-2.5 bg-theme-elevated border border-theme rounded-2xl text-theme-primary placeholder-theme-muted focus:outline-none focus:ring-2 focus:ring-theme-accent text-sm"
+                    className="block w-full pl-10 pr-10 py-2.5 bg-theme-elevated border border-theme rounded-2xl text-theme-primary placeholder-theme-muted focus:outline-none focus:ring-2 focus:ring-theme-accent text-base sm:text-sm"
                     placeholder="Start typing your street address or locality (e.g. Koramangala, Indiranagar)..."
                   />
                   {searchingAddress && (
@@ -879,7 +881,7 @@ const SchedulePickup = () => {
                     min={new Date().toISOString().split('T')[0]}
                     value={pickupDate}
                     onChange={(e) => setPickupDate(e.target.value)}
-                    className="block w-full pl-10 pr-4 py-2.5 bg-theme-elevated border border-theme rounded-2xl text-theme-primary focus:outline-none focus:ring-2 focus:ring-theme-accent text-sm"
+                    className="block w-full pl-10 pr-4 py-2.5 bg-theme-elevated border border-theme rounded-2xl text-theme-primary focus:outline-none focus:ring-2 focus:ring-theme-accent text-base sm:text-sm"
                   />
                 </div>
               </div>

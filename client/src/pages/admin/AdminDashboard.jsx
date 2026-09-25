@@ -178,7 +178,7 @@ const AdminDashboard = () => {
       </div>
 
       {/* Tab Selectors */}
-      <div className="flex border-b border-theme overflow-x-auto gap-2">
+      <div className="flex border-b border-theme overflow-x-auto gap-2 no-scrollbar py-1">
         {[
           { id: 'queue', label: 'Order Queue' },
           { id: 'fleet', label: 'Live Fleet Map' },

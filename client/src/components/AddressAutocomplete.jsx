@@ -107,7 +107,7 @@ const AddressAutocomplete = ({
           onFocus={() => {
             if (suggestions.length > 0) setShowDropdown(true);
           }}
-          className="block w-full pl-10 pr-16 py-2.5 bg-theme-elevated border border-theme rounded-2xl text-theme-primary placeholder-theme-muted focus:outline-none focus:ring-2 focus:ring-theme-accent text-sm transition-all"
+          className="block w-full pl-10 pr-16 py-2.5 bg-theme-elevated border border-theme rounded-2xl text-theme-primary placeholder-theme-muted focus:outline-none focus:ring-2 focus:ring-theme-accent text-base sm:text-sm transition-all"
           placeholder={placeholder}
         />
 
@@ -130,7 +130,7 @@ const AddressAutocomplete = ({
 
       {/* Autocomplete Dropdown */}
       {showDropdown && suggestions.length > 0 && (
-        <div className="absolute left-0 right-0 z-50 mt-1 bg-theme-card border border-theme rounded-2xl shadow-theme-lg overflow-hidden max-h-60 overflow-y-auto divide-y divide-theme animate-in fade-in duration-150">
+        <div className="absolute left-0 right-0 z-50 mt-1 bg-theme-card border border-theme rounded-2xl shadow-theme-lg overflow-hidden max-h-48 sm:max-h-60 overflow-y-auto divide-y divide-theme animate-in fade-in duration-150">
           <div className="px-3 py-1.5 bg-theme-elevated/80 text-[10px] uppercase tracking-wider font-bold text-theme-muted flex items-center justify-between">
             <span>Verified Places (Nominatim)</span>
             <span>Click to select &amp; geocode</span>

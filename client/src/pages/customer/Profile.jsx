@@ -606,7 +606,7 @@ const Profile = () => {
                   required
                   value={personalForm.name}
                   onChange={(e) => setPersonalForm({ ...personalForm, name: e.target.value })}
-                  className="w-full px-4 py-2.5 bg-theme-elevated border border-theme rounded-2xl text-theme-primary text-sm focus:outline-none focus:ring-2 focus:ring-theme-accent"
+                  className="w-full px-4 py-2.5 bg-theme-elevated border border-theme rounded-2xl text-theme-primary text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-theme-accent"
                 />
               </div>
 
@@ -623,7 +623,7 @@ const Profile = () => {
                   type="email"
                   disabled
                   value={profile?.email || ''}
-                  className="w-full px-4 py-2.5 bg-theme-elevated/50 border border-theme/60 rounded-2xl text-theme-muted text-sm cursor-not-allowed opacity-75"
+                  className="w-full px-4 py-2.5 bg-theme-elevated/50 border border-theme/60 rounded-2xl text-theme-muted text-base sm:text-sm cursor-not-allowed opacity-75"
                 />
               </div>
 
@@ -634,7 +634,7 @@ const Profile = () => {
                   placeholder="+91 98765 43210"
                   value={personalForm.phone}
                   onChange={(e) => setPersonalForm({ ...personalForm, phone: e.target.value })}
-                  className="w-full px-4 py-2.5 bg-theme-elevated border border-theme rounded-2xl text-theme-primary text-sm focus:outline-none focus:ring-2 focus:ring-theme-accent"
+                  className="w-full px-4 py-2.5 bg-theme-elevated border border-theme rounded-2xl text-theme-primary text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-theme-accent"
                 />
               </div>
 
@@ -644,7 +644,7 @@ const Profile = () => {
                   type="date"
                   value={personalForm.dateOfBirth}
                   onChange={(e) => setPersonalForm({ ...personalForm, dateOfBirth: e.target.value })}
-                  className="w-full px-4 py-2.5 bg-theme-elevated border border-theme rounded-2xl text-theme-primary text-sm focus:outline-none focus:ring-2 focus:ring-theme-accent"
+                  className="w-full px-4 py-2.5 bg-theme-elevated border border-theme rounded-2xl text-theme-primary text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-theme-accent"
                 />
               </div>
 
@@ -653,7 +653,7 @@ const Profile = () => {
                 <select
                   value={personalForm.gender}
                   onChange={(e) => setPersonalForm({ ...personalForm, gender: e.target.value })}
-                  className="w-full px-4 py-2.5 bg-theme-elevated border border-theme rounded-2xl text-theme-primary text-sm focus:outline-none focus:ring-2 focus:ring-theme-accent"
+                  className="w-full px-4 py-2.5 bg-theme-elevated border border-theme rounded-2xl text-theme-primary text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-theme-accent"
                 >
                   <option value="">Prefer not to say</option>
                   <option value="Male">Male</option>
@@ -714,9 +714,9 @@ const Profile = () => {
         transition={{ delay: 0.2 }}
         className="bg-theme-card border border-theme rounded-3xl p-6 sm:p-7 shadow-theme-sm space-y-5"
       >
-        <div className="flex items-center justify-between border-b border-theme pb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-theme pb-4 gap-3">
           <div className="flex items-center space-x-2.5">
-            <MapPin className="h-5 w-5 text-theme-accent" />
+            <MapPin className="h-5 w-5 text-theme-accent shrink-0" />
             <div>
               <h2 className="text-lg font-bold text-theme-primary font-poppins">Saved Delivery Addresses</h2>
               <p className="text-xs text-theme-muted">Pre-filled automatically on Schedule Pickup to skip re-entry</p>
@@ -724,7 +724,7 @@ const Profile = () => {
           </div>
           <button
             onClick={handleOpenAddAddress}
-            className="flex items-center space-x-1.5 text-xs font-bold bg-theme-accent text-[var(--accent-text)] px-3.5 py-2 rounded-xl shadow-theme-accent hover:opacity-90 transition-opacity"
+            className="self-start sm:self-auto flex items-center space-x-1.5 text-xs font-bold bg-theme-accent text-[var(--accent-text)] px-3.5 py-2 rounded-xl shadow-theme-accent hover:opacity-90 transition-opacity shrink-0"
           >
             <Plus className="h-4 w-4" />
             <span>Add Address</span>
@@ -844,7 +844,7 @@ const Profile = () => {
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-theme-card border border-theme rounded-3xl p-6 max-w-lg w-full shadow-theme-lg space-y-5"
+              className="bg-theme-card border border-theme rounded-3xl p-4 sm:p-6 max-w-lg w-full shadow-theme-lg space-y-4 sm:space-y-5 max-h-[90dvh] overflow-y-auto"
             >
               <div className="flex items-center justify-between border-b border-theme pb-3">
                 <h3 className="text-lg font-bold text-theme-primary font-poppins">
@@ -953,7 +953,7 @@ const Profile = () => {
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-theme-card border border-red-500/40 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4"
+              className="bg-theme-card border border-red-500/40 rounded-3xl p-4 sm:p-6 max-w-md w-full shadow-2xl space-y-4 max-h-[90dvh] overflow-y-auto"
             >
               <div className="w-12 h-12 rounded-2xl bg-red-500/10 text-red-500 flex items-center justify-center mx-auto border border-red-500/30">
                 <AlertTriangle className="h-6 w-6" />
@@ -980,7 +980,7 @@ const Profile = () => {
                   placeholder="DELETE"
                   value={deleteConfirmation}
                   onChange={(e) => setDeleteConfirmation(e.target.value)}
-                  className="w-full px-3.5 py-2 bg-theme-elevated border border-theme rounded-xl text-theme-primary text-sm focus:outline-none focus:ring-2 focus:ring-red-500 font-mono"
+                  className="w-full px-3.5 py-2 bg-theme-elevated border border-theme rounded-xl text-theme-primary text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-red-500 font-mono"
                 />
               </div>
 

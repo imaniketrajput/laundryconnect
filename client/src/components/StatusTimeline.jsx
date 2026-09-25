@@ -83,7 +83,7 @@ const StatusTimeline = ({ currentStatus, statusHistory = [] }) => {
 
       {/* Mobile Vertical Stepper (hidden on desktop) */}
       <div className="block md:hidden">
-        <div className="relative pl-6 border-l-2 border-theme ml-3 space-y-8">
+        <div className="relative pl-6 border-l-2 border-theme ml-4 space-y-8">
           {STEPS.map((step, idx) => {
             const isCompleted = idx < currentIndex;
             const isCurrent = idx === currentIndex;
@@ -93,7 +93,7 @@ const StatusTimeline = ({ currentStatus, statusHistory = [] }) => {
               <div key={step.status} className="relative">
                 {/* Stepper Dot */}
                 <div 
-                  className={`absolute -left-[35px] top-0 w-7 h-7 rounded-full flex items-center justify-center border-2 transition-colors ${
+                  className={`absolute -left-[39px] top-0 w-7 h-7 rounded-full flex items-center justify-center border-2 transition-colors ${
                     isCompleted 
                       ? 'bg-theme-accent border-theme-accent text-[var(--accent-text)]' 
                       : isCurrent 

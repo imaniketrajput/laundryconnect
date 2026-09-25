@@ -577,7 +577,7 @@ const PartnerProfile = () => {
                   required
                   value={personalForm.name}
                   onChange={(e) => setPersonalForm({ ...personalForm, name: e.target.value })}
-                  className="w-full px-4 py-2.5 bg-theme-elevated border border-theme rounded-2xl text-theme-primary text-sm focus:outline-none focus:ring-2 focus:ring-theme-accent"
+                  className="w-full px-4 py-2.5 bg-theme-elevated border border-theme rounded-2xl text-theme-primary text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-theme-accent"
                 />
               </div>
 
@@ -594,7 +594,7 @@ const PartnerProfile = () => {
                   type="email"
                   disabled
                   value={u?.email || ''}
-                  className="w-full px-4 py-2.5 bg-theme-elevated/50 border border-theme/60 rounded-2xl text-theme-muted text-sm cursor-not-allowed opacity-75"
+                  className="w-full px-4 py-2.5 bg-theme-elevated/50 border border-theme/60 rounded-2xl text-theme-muted text-base sm:text-sm cursor-not-allowed opacity-75"
                 />
               </div>
 
@@ -605,7 +605,7 @@ const PartnerProfile = () => {
                   placeholder="+91 98765 43210"
                   value={personalForm.phone}
                   onChange={(e) => setPersonalForm({ ...personalForm, phone: e.target.value })}
-                  className="w-full px-4 py-2.5 bg-theme-elevated border border-theme rounded-2xl text-theme-primary text-sm focus:outline-none focus:ring-2 focus:ring-theme-accent"
+                  className="w-full px-4 py-2.5 bg-theme-elevated border border-theme rounded-2xl text-theme-primary text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-theme-accent"
                 />
               </div>
 
@@ -614,7 +614,7 @@ const PartnerProfile = () => {
                 <select
                   value={personalForm.vehicleType}
                   onChange={(e) => setPersonalForm({ ...personalForm, vehicleType: e.target.value })}
-                  className="w-full px-4 py-2.5 bg-theme-elevated border border-theme rounded-2xl text-theme-primary text-sm focus:outline-none focus:ring-2 focus:ring-theme-accent"
+                  className="w-full px-4 py-2.5 bg-theme-elevated border border-theme rounded-2xl text-theme-primary text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-theme-accent"
                 >
                   <option value="Bike">Motorcycle / Bike</option>
                   <option value="Scooter">Scooter</option>
@@ -814,7 +814,7 @@ const PartnerProfile = () => {
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-theme-card border border-red-500/40 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4"
+              className="bg-theme-card border border-red-500/40 rounded-3xl p-4 sm:p-6 max-w-md w-full shadow-2xl space-y-4 max-h-[90dvh] overflow-y-auto"
             >
               <div className="w-12 h-12 rounded-2xl bg-red-500/10 text-red-500 flex items-center justify-center mx-auto border border-red-500/30">
                 <AlertTriangle className="h-6 w-6" />
@@ -836,7 +836,7 @@ const PartnerProfile = () => {
                   placeholder="DELETE"
                   value={deleteConfirmation}
                   onChange={(e) => setDeleteConfirmation(e.target.value)}
-                  className="w-full px-3.5 py-2 bg-theme-elevated border border-theme rounded-xl text-theme-primary text-sm focus:outline-none focus:ring-2 focus:ring-red-500 font-mono"
+                  className="w-full px-3.5 py-2 bg-theme-elevated border border-theme rounded-xl text-theme-primary text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-red-500 font-mono"
                 />
               </div>
 
