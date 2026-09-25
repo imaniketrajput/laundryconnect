@@ -36,12 +36,12 @@ const Footer = () => {
   ];
 
   return (
-    <footer className="bg-theme-secondary text-theme-muted border-t border-theme pt-16 pb-8 transition-colors duration-200">
+    <footer className="bg-theme-secondary text-theme-muted border-t border-theme pt-12 sm:pt-16 pb-24 sm:pb-8 transition-colors duration-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-12 mb-12">
           {/* Column 1: Branding */}
           <div className="space-y-4">
-            <Link to="/" className="flex items-center space-x-2 group">
+            <Link to="/" className="inline-flex items-center space-x-2 group">
               <div className="bg-theme-elevated p-2 rounded-xl text-theme-accent border border-theme">
                 <Sparkles className="h-6 w-6" />
               </div>

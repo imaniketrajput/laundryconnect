@@ -365,6 +365,11 @@ const ChatWidget = () => {
   const TOP_CLEARANCE_BUFFER = 16;
   const minTopFloor = safeNavbarHeight + TOP_CLEARANCE_BUFFER;
 
+  // Hide chat widget on auth pages to prevent mobile keyboard & form field collisions
+  if (location.pathname === '/login' || location.pathname === '/register') {
+    return null;
+  }
+
   // Bottom anchor offset: 6rem (lifted on mobile if services cart is active)
   const isServicesCartActive = location.pathname === '/services' && hasCart;
   const bottomOffsetRem = !isSm && isServicesCartActive ? 9.5 : 6;
@@ -386,35 +391,34 @@ const ChatWidget = () => {
     <>
       {/* Floating Action Launcher Button */}
       <div 
-        className={`fixed z-[60] right-4 sm:right-6 transition-all duration-300 ${
+        className={`fixed z-30 right-4 sm:right-6 transition-all duration-300 ${
           isServicesCartActive ? 'bottom-20 sm:bottom-6' : 'bottom-6'
         }`} 
-        style={{ zIndex: 60 }}
       >
         <motion.button
           onClick={handleToggleOpen}
           aria-label={isOpen ? 'Close chat assistant' : 'Open chat assistant'}
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
-          className={`relative flex items-center gap-2.5 px-4 py-3.5 rounded-full shadow-theme-lg font-medium transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-theme-accent focus:ring-offset-2 ${
+          className={`relative flex items-center justify-center transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-theme-accent focus:ring-offset-2 ${
             isOpen
-              ? 'bg-theme-card text-theme-primary border border-theme-border shadow-xl'
-              : 'bg-theme-accent text-slate-950 font-semibold shadow-theme-accent hover:brightness-105'
+              ? 'w-12 h-12 sm:w-auto sm:h-auto sm:px-4 sm:py-3.5 sm:gap-2 rounded-full bg-theme-card text-theme-primary border border-theme-border shadow-xl'
+              : 'w-12 h-12 sm:w-auto sm:h-auto sm:px-5 sm:py-3.5 sm:gap-2.5 rounded-full bg-theme-accent text-slate-950 font-semibold shadow-theme-accent hover:brightness-105'
           }`}
         >
           {isOpen ? (
             <>
               <ChevronDown className="w-5 h-5 text-theme-muted" />
-              <span className="text-sm font-medium">Close Assistant</span>
+              <span className="hidden sm:inline text-sm font-medium">Close Assistant</span>
             </>
           ) : (
             <>
-              <div className="relative">
+              <div className="relative flex items-center justify-center">
                 <MessageSquare className="w-5 h-5" />
                 <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-slate-950 animate-pulse" />
               </div>
-              <span className="text-sm font-semibold tracking-wide">Ask AI</span>
-              <Sparkles className="w-4 h-4 text-slate-900 animate-pulse" />
+              <span className="hidden sm:inline text-sm font-semibold tracking-wide">Ask AI</span>
+              <Sparkles className="hidden sm:inline w-4 h-4 text-slate-900 animate-pulse" />
             </>
           )}
         </motion.button>

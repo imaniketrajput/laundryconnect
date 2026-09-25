@@ -123,9 +123,9 @@ const Services = () => {
   };
 
   return (
-    <div className="min-h-screen bg-theme-bg text-theme-primary py-10 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto pb-32 transition-colors duration-200">
+    <div className="min-h-screen bg-theme-bg text-theme-primary py-10 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto pb-36 sm:pb-24 transition-colors duration-200">
       <div className="text-center max-w-3xl mx-auto mb-10">
-        <h1 className="text-4xl font-extrabold text-theme-primary font-poppins tracking-tight">
+        <h1 className="text-3xl sm:text-4xl font-extrabold text-theme-primary font-poppins tracking-tight">
           Our Cleaning <span className="text-theme-accent">Services</span>
         </h1>
         <p className="text-theme-muted text-sm mt-1">
@@ -134,7 +134,7 @@ const Services = () => {
       </div>
 
       {/* Search and Category Filters */}
-      <div className="bg-theme-card p-6 rounded-3xl border border-theme shadow-theme-sm space-y-5 mb-8">
+      <div className="bg-theme-card p-4 sm:p-6 rounded-3xl border border-theme shadow-theme-sm space-y-4 sm:space-y-5 mb-8">
         <div className="relative rounded-2xl shadow-sm">
           <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
             <Search className="h-5 w-5 text-theme-muted" />
@@ -144,17 +144,17 @@ const Services = () => {
             placeholder="Search for dry cleaning, ironing, shoes..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="block w-full pl-12 pr-4 py-3.5 bg-theme-elevated border border-theme rounded-2xl text-theme-primary placeholder-theme-muted focus:outline-none focus:ring-2 focus:ring-theme-accent text-base sm:text-sm transition-colors"
+            className="block w-full pl-12 pr-4 py-3 sm:py-3.5 bg-theme-elevated border border-theme rounded-2xl text-theme-primary placeholder-theme-muted focus:outline-none focus:ring-2 focus:ring-theme-accent text-base sm:text-sm transition-colors"
           />
         </div>
 
-        {/* Category Filters */}
-        <div className="flex overflow-x-auto no-scrollbar sm:flex-wrap gap-2 pt-1 pb-1">
+        {/* Category Filters (Mobile-first wrapping - all 5 items fully visible) */}
+        <div className="flex flex-wrap gap-2 pt-1 pb-1">
           {categories.map(cat => (
             <button
               key={cat}
               onClick={() => setSelectedCategory(cat)}
-              className={`px-4 py-2 rounded-xl text-xs font-bold shrink-0 sm:shrink transition-all duration-200 ${
+              className={`px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200 ${
                 selectedCategory === cat
                   ? 'bg-theme-accent text-[var(--accent-text)] shadow-sm'
                   : 'bg-theme-elevated text-theme-muted border border-theme hover:bg-theme-surface hover:text-theme-primary'

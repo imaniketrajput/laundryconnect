@@ -53,17 +53,17 @@ const Register = () => {
   };
 
   return (
-    <div className="min-h-[85vh] flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 bg-theme-bg text-theme-primary transition-colors duration-200">
+    <div className="min-h-[85vh] flex flex-col justify-center py-8 sm:py-12 px-4 sm:px-6 lg:px-8 pb-20 sm:pb-12 bg-theme-bg text-theme-primary transition-colors duration-200">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <div className="flex justify-center">
-          <div className="bg-theme-elevated p-3 rounded-2xl text-theme-accent border border-theme shadow-theme-md">
-            <Sparkles className="h-8 w-8" />
+          <div className="bg-theme-elevated p-2.5 sm:p-3 rounded-2xl text-theme-accent border border-theme shadow-theme-md">
+            <Sparkles className="h-7 w-7 sm:h-8 sm:w-8" />
           </div>
         </div>
-        <h2 className="mt-6 text-center text-3xl font-extrabold text-theme-primary font-poppins">
+        <h2 className="mt-4 sm:mt-6 text-center text-2xl sm:text-3xl font-extrabold text-theme-primary font-poppins">
           Create your account
         </h2>
-        <p className="mt-2 text-center text-sm text-theme-muted">
+        <p className="mt-1.5 sm:mt-2 text-center text-xs sm:text-sm text-theme-muted">
           Or{' '}
           <Link to="/login" className="font-semibold text-theme-accent hover:underline transition-colors">
             sign in to your account
@@ -71,16 +71,16 @@ const Register = () => {
         </p>
       </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-theme-card py-8 px-4 sm:px-10 shadow-theme-md rounded-2xl sm:rounded-3xl border border-theme">
+      <div className="mt-6 sm:mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+        <div className="bg-theme-card py-6 sm:py-8 px-4 sm:px-10 shadow-theme-md rounded-2xl sm:rounded-3xl border border-theme">
           {error && (
-            <div className="mb-6 flex items-center space-x-2 bg-red-500/10 border border-red-500/30 text-red-500 p-3.5 rounded-xl text-sm">
-              <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0" />
+            <div className="mb-4 sm:mb-6 flex items-center space-x-2 bg-red-500/10 border border-red-500/30 text-red-500 p-3 sm:p-3.5 rounded-xl text-xs sm:text-sm">
+              <AlertCircle className="h-4 w-4 sm:h-5 sm:w-5 text-red-500 flex-shrink-0" />
               <span>{error}</span>
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
             {/* Role Selection Tabs */}
             <div>
               <label className="block text-sm font-semibold text-theme-primary mb-2">I want to register as a</label>
