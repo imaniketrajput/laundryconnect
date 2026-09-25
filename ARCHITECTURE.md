@@ -258,7 +258,30 @@ LaundryConnect integrates four core Data Structures and Algorithms into producti
 - **`authorize(...roles)`**: Verifies `roles.includes(req.user.role)`. Rejects unauthorized roles with HTTP `403`.
 - **In-Controller IDOR Guards**: Endpoints such as `getOrderById`, `payForOrder`, and `verifyPayment` enforce that `order.customer.toString() === req.user.id` (or caller has `admin`/`partner` status).
 
+### 6.3 Google OAuth 2.0 Integration & Account Linking (`POST /api/auth/google`)
+- **Additive Multi-Method Architecture**:
+  - Google Sign-In / Sign-Up operates alongside existing email/password authentication. The legacy password flow remains 100% intact and unaffected.
+  - Client-side token dispatch via `@react-oauth/google` passes the verified Google ID token (`credential`) to `POST /api/auth/google`.
+- **Server-Side Cryptographic Token Verification**:
+  - The server verifies the token cryptographically using `google-auth-library`'s `OAuth2Client.verifyIdToken({ idToken, audience: process.env.GOOGLE_CLIENT_ID })`.
+  - Claims (`email`, `name`, `sub` as `googleId`, `picture`) are extracted exclusively from the verified server-side ticket payload — unverified client claims are never trusted.
+- **Account Linking Logic**:
+  - If a `User` document already exists with that email (from a prior password signup), the server links `user.googleId = googleId` rather than creating a duplicate account.
+  - The user is logged in immediately with their existing account, orders, and role without requiring re-registration.
+- **Two-Step Registration & Role Selection for New Google Users**:
+  - If no account exists with that email, the user is a new Google user.
+  - To prevent accidental auto-assignment, the server initially returns `{ newGoogleUser: true, email, name, picture }`.
+  - The client displays a lightweight role-selection modal ([`GoogleRoleModal.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/components/GoogleRoleModal.jsx)) allowing the user to choose **Customer** or **Delivery Partner** (with vehicle type).
+  - The frontend re-submits `{ credential, role, vehicleType, phone, address }` to finalize account creation.
+  - For Delivery Partners, the server atomically creates both the `User` and linked `DeliveryPartner` documents.
+- **Password-Optional Schema & Google-Only Login Guard**:
+  - In [`User.js`](file:///c:/Users/Pratik/laundryconnect/server/models/User.js), `password` is optional when `googleId` is present, enforced by schema-level validation ensuring at least one auth credential exists.
+  - If a user with a Google-only account attempts password-based login at `POST /api/auth/login`, the server returns a clear HTTP 400 error: `"This account uses Google Sign-In. Please use the Google button to log in."` preventing bcrypt errors or confusing credential rejections.
+- **Token Parity**:
+  - Issues the exact same JWT format `{ id: user._id, role: user.role }`, ensuring total interoperability with `protect`, `authorize`, and client-side `AuthContext`.
+
 ---
+
 
 ## 7. Payment Flow (Razorpay)
 
@@ -582,8 +605,11 @@ Because the browser W3C Geolocation API cannot cryptographically attest that coo
 | `SERVICE_RADIUS_KM` | `server/.env` | Deprecated (Phase 6) | Previously used for hard geofence rejection; replaced by dynamic distance pricing. |
 | `GEMINI_API_KEY` | `server/.env` | **Required** (for AI Chat) | Google Gemini API key (Read strictly via `process.env`; free from https://aistudio.google.com/apikey). |
 | `GEMINI_MODEL` | `server/.env` | Optional (Default: `gemini-2.0-flash`) | Configurable Gemini model identifier (e.g. `gemini-2.0-flash`, `gemini-1.5-flash`, etc.). |
+| `GOOGLE_CLIENT_ID` | `server/.env` | **Required** (for Google Auth) | Google OAuth 2.0 Web Client ID used by server-side `OAuth2Client.verifyIdToken()` to verify tokens. |
+| `VITE_GOOGLE_CLIENT_ID` | `client/.env` | **Required** (for Google Auth) | Google OAuth 2.0 Web Client ID used by frontend `@react-oauth/google` `GoogleOAuthProvider` (safe to be public). |
 
 ---
+
 
 ## 11. AI Customer Support Subsystem (Google Gemini)
 
@@ -860,7 +886,41 @@ A wrong AI-stated price or false delivery promise represents a critical business
     - `server/controllers/partnerController.js`
     - `ARCHITECTURE.md`
 
+### 2026-09-25
+- **GOOGLE SIGN-IN / SIGN-UP INTEGRATION — Customer & Delivery Partner Auth**:
+  - *Context & Rationale*: Added "Sign in with Google" and "Sign up with Google" as an additive authentication method alongside existing email/password auth for both Customers and Delivery Partners. Legacy email/password authentication remains 100% operational and unchanged.
+  - *Backend Implementation (`server/`)*:
+    - Installed `google-auth-library` and added `GOOGLE_CLIENT_ID` configuration to `server/.env` and `server/.env.example`.
+    - Extended [`User.js`](file:///c:/Users/Pratik/laundryconnect/server/models/User.js) schema with `googleId` (`String`, sparse, unique) and made `password` optional with schema-level validation requiring either password or googleId.
+    - Updated [`authController.js`](file:///c:/Users/Pratik/laundryconnect/server/controllers/authController.js) `login`: if a Google-only account attempts password login, returns HTTP 400 with clear message: `"This account uses Google Sign-In. Please use the Google button to log in."`
+    - Implemented `POST /api/auth/google` with server-side token verification using `OAuth2Client.verifyIdToken()`. Never trusts client-sent claims directly.
+    - Account Linking: If an existing user matches the verified Google email, links `googleId` and returns JWT immediately without duplicate accounts.
+    - New User Onboarding: Returns `{ newGoogleUser: true }` prompting role selection, or creates `User` (and `DeliveryPartner` if role is partner) upon role selection.
+  - *Frontend Implementation (`client/`)*:
+    - Installed `@react-oauth/google` and wrapped application root with `GoogleOAuthProvider` using `VITE_GOOGLE_CLIENT_ID`.
+    - Added Google sign-in/up buttons using `<GoogleLogin />` below the email/password form with an "Or continue with" divider on [`Login.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/pages/Login.jsx) and [`Register.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/pages/Register.jsx).
+    - Created reusable [`GoogleRoleModal.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/components/GoogleRoleModal.jsx) prompting new Google users to select Customer vs Delivery Partner (with vehicle type).
+    - Integrated button theming with the 4-theme design system (`filled_black` for dark themes `midnight`/`aurora`, `outline` for light themes `light`/`sunrise`).
+    - Added `googleAuth` method to [`AuthContext.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/context/AuthContext.jsx).
+  - *Files Touched*:
+    - [`server/package.json`](file:///c:/Users/Pratik/laundryconnect/server/package.json)
+    - [`server/.env.example`](file:///c:/Users/Pratik/laundryconnect/server/.env.example)
+    - [`server/.env`](file:///c:/Users/Pratik/laundryconnect/server/.env)
+    - [`server/models/User.js`](file:///c:/Users/Pratik/laundryconnect/server/models/User.js)
+    - [`server/controllers/authController.js`](file:///c:/Users/Pratik/laundryconnect/server/controllers/authController.js)
+    - [`server/routes/authRoutes.js`](file:///c:/Users/Pratik/laundryconnect/server/routes/authRoutes.js)
+    - [`client/package.json`](file:///c:/Users/Pratik/laundryconnect/client/package.json)
+    - [`client/.env.example`](file:///c:/Users/Pratik/laundryconnect/client/.env.example)
+    - [`client/.env`](file:///c:/Users/Pratik/laundryconnect/client/.env)
+    - [`client/src/main.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/main.jsx)
+    - [`client/src/context/AuthContext.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/context/AuthContext.jsx)
+    - [`client/src/components/GoogleRoleModal.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/components/GoogleRoleModal.jsx)
+    - [`client/src/pages/Login.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/pages/Login.jsx)
+    - [`client/src/pages/Register.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/pages/Register.jsx)
+    - [`ARCHITECTURE.md`](file:///c:/Users/Pratik/laundryconnect/ARCHITECTURE.md)
+
 ### 2026-09-24 (Phase 7)
+
 - **ZERO FALLBACK GEOCODING FIX, SITE-WIDE LOCATION PERMISSION & FULL PROFILES (Phase 7)**:
   - *Critical Bug Fix (Zero Silent Fallback Coordinates)*:
     - Removed hardcoded Bangalore fallback coordinate `{ lat: 12.9716, lng: 77.5946 }` completely from `server/utils/geocoder.js`. Unresolved addresses strictly return `null`.

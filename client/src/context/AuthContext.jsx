@@ -125,18 +125,67 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const googleAuth = async ({ credential, role, vehicleType, phone, address }) => {
+    try {
+      const response = await api.post('/auth/google', {
+        credential,
+        role,
+        vehicleType,
+        phone,
+        address,
+      });
+
+      // If new Google user requiring role selection
+      if (response.data?.newGoogleUser) {
+        return {
+          success: true,
+          newGoogleUser: true,
+          googleUser: response.data,
+        };
+      }
+
+      // Existing user or finalized new user
+      const { token, user: userData } = response.data;
+      localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(userData));
+      setUser(userData);
+
+      // Hydrate full profile after login
+      try {
+        const profRes = await api.get('/users/profile');
+        if (profRes.data?.user) {
+          const merged = { ...profRes.data.user, partner: profRes.data.partner };
+          setUser(merged);
+          localStorage.setItem('user', JSON.stringify(merged));
+        }
+      } catch (err) {
+        // non-blocking
+      }
+
+      return { success: true, user: userData };
+    } catch (error) {
+      console.error('Google Auth error:', error);
+      return {
+        success: false,
+        message: error.response?.data?.message || 'Google authentication failed. Please try again.'
+      };
+    }
+  };
+
   const logout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     setUser(null);
   };
 
+
   const isComplete = isProfileComplete(user);
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, updateUser, isProfileComplete: isComplete }}>
+    <AuthContext.Provider value={{ user, loading, login, register, googleAuth, logout, updateUser, isProfileComplete: isComplete }}>
       {children}
     </AuthContext.Provider>
+
   );
 };
 

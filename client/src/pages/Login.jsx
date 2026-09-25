@@ -1,18 +1,37 @@
 import React, { useState } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
+import { GoogleLogin } from '@react-oauth/google';
 import { useAuth } from '../context/AuthContext';
+import GoogleRoleModal from '../components/GoogleRoleModal';
 import { Sparkles, Mail, Lock, AlertCircle, ArrowRight } from 'lucide-react';
 
 const Login = () => {
-  const { login } = useAuth();
+  const { login, googleAuth } = useAuth();
   const [email, setEmail] = useState('');
+
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  // Google OAuth state
+  const [pendingCredential, setPendingCredential] = useState(null);
+  const [googleUserData, setGoogleUserData] = useState(null);
+  const [roleModalOpen, setRoleModalOpen] = useState(false);
+  const [roleSubmitting, setRoleSubmitting] = useState(false);
   
   const navigate = useNavigate();
   const location = useLocation();
   const from = location.state?.from?.pathname || '/';
+
+  const redirectRoleBased = (role) => {
+    if (role === 'admin') {
+      navigate('/admin');
+    } else if (role === 'partner') {
+      navigate('/partner');
+    } else {
+      navigate(from, { replace: true });
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -27,18 +46,66 @@ const Login = () => {
     setSubmitting(false);
 
     if (result.success) {
-      // Redirect role-based
-      if (result.user.role === 'admin') {
-        navigate('/admin');
-      } else if (result.user.role === 'partner') {
-        navigate('/partner');
+      redirectRoleBased(result.user?.role);
+    } else {
+      setError(result.message);
+    }
+  };
+
+  const handleGoogleSuccess = async (credentialResponse) => {
+    setError('');
+    const credential = credentialResponse.credential;
+    if (!credential) {
+      setError('Google authentication failed: no credential received from Google.');
+      return;
+    }
+
+    setSubmitting(true);
+    const result = await googleAuth({ credential });
+    setSubmitting(false);
+
+    if (result.success) {
+      if (result.newGoogleUser) {
+        // Show role selection modal for new user
+        setPendingCredential(credential);
+        setGoogleUserData(result.googleUser);
+        setRoleModalOpen(true);
       } else {
-        navigate(from, { replace: true });
+        // Existing user or already linked
+        redirectRoleBased(result.user?.role);
       }
     } else {
       setError(result.message);
     }
   };
+
+  const handleGoogleError = () => {
+    setError('Google Sign-In was unsuccessful or closed. Please try again.');
+  };
+
+  const handleRoleSelectionSubmit = async ({ role, vehicleType, phone, address }) => {
+    setRoleSubmitting(true);
+    setError('');
+
+    const result = await googleAuth({
+      credential: pendingCredential,
+      role,
+      vehicleType,
+      phone,
+      address,
+    });
+    setRoleSubmitting(false);
+
+    if (result.success && !result.newGoogleUser) {
+      setRoleModalOpen(false);
+      redirectRoleBased(result.user?.role);
+    } else {
+      setError(result.message || 'Failed to complete Google account registration.');
+    }
+  };
+
+  const hasGoogleClientId = Boolean(import.meta.env.VITE_GOOGLE_CLIENT_ID);
+
 
   return (
     <div className="min-h-[80vh] flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 bg-theme-bg text-theme-primary transition-colors duration-200">
@@ -130,8 +197,53 @@ const Login = () => {
               </button>
             </div>
           </form>
+
+          {/* Social Sign-In Divider */}
+          <div className="relative my-6">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-theme" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-theme-card px-2 text-theme-muted font-semibold tracking-wider">
+                Or continue with
+              </span>
+            </div>
+          </div>
+
+          {/* Google Sign-In Button */}
+          <div className="flex flex-col items-center justify-center w-full min-h-[44px]">
+            {hasGoogleClientId ? (
+              <div className="w-full flex justify-center">
+                <div className="w-[368px] max-w-full rounded-xl overflow-hidden border border-[#dadce0] bg-white flex justify-center">
+                  <GoogleLogin
+                    onSuccess={handleGoogleSuccess}
+                    onError={handleGoogleError}
+                    theme="outline"
+                    size="large"
+                    shape="rectangular"
+                    text="continue_with"
+                    width="368"
+                    logo_alignment="center"
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="w-full p-3 rounded-xl bg-theme-elevated border border-theme text-center text-xs text-theme-muted">
+                Google Sign-In is ready on the server. Add <code className="text-theme-accent">VITE_GOOGLE_CLIENT_ID</code> to enable.
+              </div>
+            )}
+          </div>
         </div>
       </div>
+
+      {/* Role Selection Modal for New Google Users */}
+      <GoogleRoleModal
+        isOpen={roleModalOpen}
+        googleUser={googleUserData}
+        onSubmit={handleRoleSelectionSubmit}
+        onClose={() => setRoleModalOpen(false)}
+        submitting={roleSubmitting}
+      />
     </div>
   );
 };

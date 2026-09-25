@@ -15,11 +15,21 @@ const userSchema = new mongoose.Schema(
     {
         name: { type: String, required: true },
         email: { type: String, required: true, unique: true },
-        password: { type: String, required: true },
+        password: {
+            type: String,
+            required: function () {
+                return !this.googleId;
+            },
+        },
+        googleId: {
+            type: String,
+            sparse: true,
+            unique: true,
+        },
         role: { type: String, enum: ["customer", "partner", "admin"], default: "customer" },
         phone: { type: String },
         address: { type: String },
-        profilePhoto: { type: String, default: null }, // Base64 data URL
+        profilePhoto: { type: String, default: null }, // Base64 data URL or Google picture URL
         savedAddresses: [savedAddressSchema],
         dateOfBirth: { type: String, default: null },
         gender: { type: String, enum: ["Male", "Female", "Other", "Prefer not to say", null], default: null },
@@ -27,5 +37,13 @@ const userSchema = new mongoose.Schema(
     },
     { timestamps: true }
 );
+
+// Schema-level validation: user must have either password or googleId
+userSchema.pre('validate', function () {
+    if (!this.password && !this.googleId) {
+        throw new Error('User must have either a password or a googleId');
+    }
+});
+
 
 module.exports = mongoose.model('User', userSchema);
