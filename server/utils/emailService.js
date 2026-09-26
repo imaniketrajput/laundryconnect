@@ -630,3 +630,221 @@ exports.sendStatusUpdateEmail = async (order, user, newStatus) => {
     console.error("[EmailService] sendStatusUpdateEmail caught error:", err.message);
   }
 };
+
+// ─── 5. Send Support Ticket Confirmation (Customer Submitter) ───────────────
+exports.sendSupportTicketConfirmationEmail = async (ticket) => {
+  try {
+    if (!ticket || !ticket.email) {
+      console.warn("[EmailService] sendSupportTicketConfirmationEmail aborted: Missing ticket email");
+      return;
+    }
+
+    const token = ticket.ticketToken || "PENDING";
+    const firstName = ticket.name ? ticket.name.split(" ")[0] : "there";
+    const createdStr = ticket.createdAt
+      ? new Date(ticket.createdAt).toLocaleDateString("en-IN", {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      : new Date().toLocaleDateString("en-IN");
+
+    const contentHtml = `
+      <!-- Ticket Received Badge Header -->
+      <div style="margin-bottom: 24px;">
+        <span style="display: inline-block; background-color: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 8px; text-transform: uppercase; letter-spacing: 0.5px;">
+          Ticket Received &bull; #${token}
+        </span>
+        <h2 style="margin: 10px 0 6px 0; color: #ffffff; font-size: 20px; font-weight: 800;">We've Got Your Request! 💬</h2>
+        <p style="margin: 0; color: #94a3b8; font-size: 13px;">Submitted on ${createdStr}</p>
+      </div>
+
+      <p style="margin: 0 0 20px 0; color: #cbd5e1; font-size: 14px; line-height: 1.6;">
+        Hello <strong>${firstName}</strong>, thank you for reaching out to LaundryConnect Support. Your request has been logged into our support queue with ticket token <strong style="color: #f59e0b; font-family: monospace;">${token}</strong>. Our support team has been notified and we will respond to you shortly.
+      </p>
+
+      <!-- Ticket Summary Box -->
+      <table width="100%" border="0" cellpadding="0" cellspacing="0" style="background-color: #1e293b; border-radius: 12px; border: 1px solid #334155; padding: 18px; margin: 20px 0;">
+        <tr>
+          <td>
+            <table width="100%" border="0" cellpadding="0" cellspacing="0">
+              <tr>
+                <td style="color: #94a3b8; font-size: 12px; padding-bottom: 8px;">Ticket Token</td>
+                <td align="right" style="color: #f59e0b; font-family: monospace; font-size: 13px; font-weight: 700; padding-bottom: 8px;">${token}</td>
+              </tr>
+              <tr>
+                <td style="color: #94a3b8; font-size: 12px; padding-bottom: 8px;">Subject</td>
+                <td align="right" style="color: #ffffff; font-size: 13px; font-weight: 600; padding-bottom: 8px;">${ticket.subject || "Customer Inquiry"}</td>
+              </tr>
+              <tr>
+                <td style="color: #94a3b8; font-size: 12px; padding-bottom: 8px;">Current Status</td>
+                <td align="right" style="color: #f59e0b; font-size: 12px; font-weight: 700; padding-bottom: 8px;">
+                  <span style="background-color: rgba(245, 158, 11, 0.15); color: #f59e0b; padding: 2px 8px; border-radius: 6px; font-size: 11px;">${ticket.status || "Pending"}</span>
+                </td>
+              </tr>
+              ${ticket.relatedOrderId ? `
+              <tr>
+                <td style="color: #94a3b8; font-size: 12px; padding-bottom: 8px;">Related Order</td>
+                <td align="right" style="color: #94a3b8; font-family: monospace; font-size: 12px; padding-bottom: 8px;">#${ticket.relatedOrderId.toString().slice(-8).toUpperCase()}</td>
+              </tr>` : ''}
+              <tr style="border-top: 1px solid #334155;">
+                <td colspan="2" style="padding-top: 12px;">
+                  <div style="color: #94a3b8; font-size: 11px; text-transform: uppercase; font-weight: 700; margin-bottom: 6px;">Your Message:</div>
+                  <div style="background-color: #0f172a; border-radius: 8px; border: 1px solid #334155; padding: 12px; color: #e2e8f0; font-size: 13px; line-height: 1.5; white-space: pre-wrap;">${ticket.message}</div>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+
+      <!-- Track Ticket Guidance -->
+      <table width="100%" border="0" cellpadding="0" cellspacing="0" style="background-color: rgba(245, 158, 11, 0.08); border-radius: 8px; border: 1px dashed rgba(245, 158, 11, 0.4); margin: 16px 0 24px 0;">
+        <tr>
+          <td style="padding: 12px 16px; font-size: 12px; color: #f59e0b; text-align: center;">
+            📌 <strong>Save Your Ticket Code:</strong> You can check your ticket's real-time status at any time on the Contact page using token: <strong style="font-family: monospace; font-size: 13px;">${token}</strong>
+          </td>
+        </tr>
+      </table>
+
+      <!-- CTA -->
+      <table width="100%" border="0" cellpadding="0" cellspacing="0" style="margin: 20px 0 12px 0;">
+        <tr>
+          <td align="center">
+            <a href="http://localhost:5173/contact" style="display: inline-block; background-color: #f59e0b; color: #0a0f1d; font-size: 13px; font-weight: 800; padding: 12px 28px; border-radius: 10px; text-decoration: none; text-transform: uppercase; letter-spacing: 0.5px;">
+              Check Ticket Status
+            </a>
+          </td>
+        </tr>
+      </table>
+    `;
+
+    const html = renderEmailLayout({
+      title: `Support Ticket Received [${token}]`,
+      preheader: `We've received your request #${token}. Our team will respond shortly.`,
+      contentHtml,
+    });
+
+    await safeSendEmail({
+      to: ticket.email,
+      subject: `💬 Support Ticket Received [${token}] — LaundryConnect`,
+      html,
+      emailType: "Support Ticket Confirmation Email",
+    });
+  } catch (err) {
+    console.error("[EmailService] sendSupportTicketConfirmationEmail caught error:", err.message);
+  }
+};
+
+// ─── 6. Send Support Ticket Admin Notification (Admin Inbox) ────────────────
+exports.sendSupportTicketAdminNotificationEmail = async (ticket) => {
+  try {
+    const adminEmail = process.env.CONTACT_EMAIL || process.env.GMAIL_USER;
+    if (!adminEmail) {
+      console.warn("[EmailService] sendSupportTicketAdminNotificationEmail aborted: No CONTACT_EMAIL or GMAIL_USER configured");
+      return;
+    }
+
+    const token = ticket.ticketToken || "PENDING";
+    const createdStr = ticket.createdAt
+      ? new Date(ticket.createdAt).toLocaleDateString("en-IN", {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      : new Date().toLocaleDateString("en-IN");
+
+    const contentHtml = `
+      <!-- Admin Alert Header -->
+      <div style="margin-bottom: 24px;">
+        <span style="display: inline-block; background-color: rgba(59, 130, 246, 0.15); color: #3b82f6; border: 1px solid rgba(59, 130, 246, 0.3); font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 8px; text-transform: uppercase; letter-spacing: 0.5px;">
+          Admin Notification &bull; Support Ticket
+        </span>
+        <h2 style="margin: 10px 0 6px 0; color: #ffffff; font-size: 20px; font-weight: 800;">New Ticket: ${ticket.subject}</h2>
+        <p style="margin: 0; color: #94a3b8; font-size: 13px;">Received ${createdStr} &bull; Token: <strong style="color: #f59e0b; font-family: monospace;">${token}</strong></p>
+      </div>
+
+      <!-- Submitter Profile Card -->
+      <table width="100%" border="0" cellpadding="0" cellspacing="0" style="background-color: #1e293b; border-radius: 12px; border: 1px solid #334155; padding: 18px; margin: 20px 0;">
+        <tr>
+          <td>
+            <table width="100%" border="0" cellpadding="0" cellspacing="0">
+              <tr>
+                <td style="color: #94a3b8; font-size: 12px; padding-bottom: 8px;">Submitter Name</td>
+                <td align="right" style="color: #ffffff; font-size: 13px; font-weight: 700; padding-bottom: 8px;">${ticket.name}</td>
+              </tr>
+              <tr>
+                <td style="color: #94a3b8; font-size: 12px; padding-bottom: 8px;">Submitter Email</td>
+                <td align="right" style="color: #f59e0b; font-size: 13px; font-weight: 600; padding-bottom: 8px;">
+                  <a href="mailto:${ticket.email}" style="color: #f59e0b;">${ticket.email}</a>
+                </td>
+              </tr>
+              <tr>
+                <td style="color: #94a3b8; font-size: 12px; padding-bottom: 8px;">Ticket Token</td>
+                <td align="right" style="color: #ffffff; font-family: monospace; font-size: 13px; font-weight: 700; padding-bottom: 8px;">${token}</td>
+              </tr>
+              <tr>
+                <td style="color: #94a3b8; font-size: 12px; padding-bottom: 8px;">Initial Status</td>
+                <td align="right" style="color: #f59e0b; font-size: 12px; font-weight: 700; padding-bottom: 8px;">${ticket.status || "Pending"}</td>
+              </tr>
+              ${ticket.relatedOrderId ? `
+              <tr>
+                <td style="color: #94a3b8; font-size: 12px; padding-bottom: 8px;">Related Order ID</td>
+                <td align="right" style="color: #94a3b8; font-family: monospace; font-size: 12px; padding-bottom: 8px;">${ticket.relatedOrderId}</td>
+              </tr>` : ''}
+              ${ticket.submittedBy ? `
+              <tr>
+                <td style="color: #94a3b8; font-size: 12px; padding-bottom: 8px;">Authenticated User ID</td>
+                <td align="right" style="color: #94a3b8; font-family: monospace; font-size: 12px; padding-bottom: 8px;">${ticket.submittedBy}</td>
+              </tr>` : '<tr><td style="color: #94a3b8; font-size: 12px;">Auth State</td><td align="right" style="color: #94a3b8; font-size: 12px;">Submitted while logged out</td></tr>'}
+              <tr style="border-top: 1px solid #334155;">
+                <td colspan="2" style="padding-top: 12px;">
+                  <div style="color: #94a3b8; font-size: 11px; text-transform: uppercase; font-weight: 700; margin-bottom: 6px;">Customer Inquiry Message:</div>
+                  <div style="background-color: #0f172a; border-radius: 8px; border: 1px solid #334155; padding: 14px; color: #e2e8f0; font-size: 13px; line-height: 1.6; white-space: pre-wrap;">${ticket.message}</div>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+
+      <!-- CTA -->
+      <table width="100%" border="0" cellpadding="0" cellspacing="0" style="margin: 20px 0 12px 0;">
+        <tr>
+          <td align="center">
+            <a href="http://localhost:5173/admin" style="display: inline-block; background-color: #f59e0b; color: #0a0f1d; font-size: 13px; font-weight: 800; padding: 12px 28px; border-radius: 10px; text-decoration: none; text-transform: uppercase; letter-spacing: 0.5px;">
+              Open Admin Dashboard
+            </a>
+          </td>
+        </tr>
+      </table>
+    `;
+
+    const html = renderEmailLayout({
+      title: `[Support Ticket] ${token} - ${ticket.subject}`,
+      preheader: `New support ticket from ${ticket.name}: "${ticket.subject}"`,
+      contentHtml,
+    });
+
+    await safeSendEmail({
+      to: adminEmail,
+      subject: `🚨 [New Ticket #${token}] ${ticket.subject} — LaundryConnect`,
+      html,
+      emailType: "Support Ticket Admin Notification",
+    });
+  } catch (err) {
+    console.error("[EmailService] sendSupportTicketAdminNotificationEmail caught error:", err.message);
+  }
+};
+
+// ─── 7. Combined Dispatcher Helper ───────────────────────────────────────────
+exports.sendSupportTicketEmail = async (ticket) => {
+  return Promise.all([
+    exports.sendSupportTicketConfirmationEmail(ticket),
+    exports.sendSupportTicketAdminNotificationEmail(ticket),
+  ]);
+};

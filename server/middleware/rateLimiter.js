@@ -75,4 +75,68 @@ const chatRateLimiter = (req, res, next) => {
   next();
 };
 
+/**
+ * Factory to create in-memory sliding-window rate limiters.
+ */
+const createRateLimiter = ({ windowMs = 60 * 1000, maxRequests = 20, message = 'Too many requests. Please wait a moment before trying again.' }) => {
+  const historyMap = new Map();
+
+  const cleanup = setInterval(() => {
+    const now = Date.now();
+    const threshold = now - windowMs;
+    for (const [ip, timestamps] of historyMap.entries()) {
+      const recent = timestamps.filter((t) => t > threshold);
+      if (recent.length === 0) {
+        historyMap.delete(ip);
+      } else {
+        historyMap.set(ip, recent);
+      }
+    }
+  }, CLEANUP_INTERVAL_MS);
+
+  if (cleanup.unref) {
+    cleanup.unref();
+  }
+
+  return (req, res, next) => {
+    const forwarded = req.headers['x-forwarded-for'];
+    const clientIp = (forwarded ? forwarded.split(',')[0].trim() : null) || 
+                     req.ip || 
+                     req.socket?.remoteAddress || 
+                     'unknown-client';
+
+    const now = Date.now();
+    const windowStart = now - windowMs;
+
+    let timestamps = historyMap.get(clientIp) || [];
+    timestamps = timestamps.filter((t) => t > windowStart);
+
+    if (timestamps.length >= maxRequests) {
+      const oldestTimestamp = timestamps[0];
+      const retryAfterSec = Math.ceil((oldestTimestamp + windowMs - now) / 1000);
+
+      res.setHeader('Retry-After', Math.max(1, retryAfterSec));
+      return res.status(429).json({
+        message,
+        retryAfter: Math.max(1, retryAfterSec),
+      });
+    }
+
+    timestamps.push(now);
+    historyMap.set(clientIp, timestamps);
+
+    next();
+  };
+};
+
+// Rate limiter for support tickets: 5 tickets per 10 minutes per IP
+const supportRateLimiter = createRateLimiter({
+  windowMs: 10 * 60 * 1000,
+  maxRequests: 5,
+  message: 'Too many support tickets submitted from this network. Please wait a few minutes before submitting another ticket.',
+});
+
+chatRateLimiter.createRateLimiter = createRateLimiter;
+chatRateLimiter.supportRateLimiter = supportRateLimiter;
+
 module.exports = chatRateLimiter;

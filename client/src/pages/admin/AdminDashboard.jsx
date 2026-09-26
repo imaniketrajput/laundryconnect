@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import api from '../../api/axios';
 import { 
   Shield, Users, ClipboardList, Sparkles, 
-  Loader2, Clock, CheckCircle2, AlertCircle
+  Loader2, Clock, CheckCircle2, AlertCircle, MessageSquare
 } from 'lucide-react';
 import { STATUS_COLORS } from '../customer/MyOrders';
 import { DashboardTableSkeleton } from '../../components/Skeleton';
@@ -29,6 +29,61 @@ const AdminDashboard = () => {
   // Per-row status update: { orderId: { updating, msg, type } }
   const [rowStatus, setRowStatus] = useState({});
 
+  // Support Tickets tab state
+  const [tickets, setTickets] = useState([]);
+  const [ticketFilter, setTicketFilter] = useState('All');
+  const [ticketLoading, setTicketLoading] = useState(false);
+  const [ticketStatusCounts, setTicketStatusCounts] = useState({ All: 0, Pending: 0, 'In Progress': 0, Resolved: 0, Closed: 0 });
+  const [ticketNotes, setTicketNotes] = useState({});
+  const [ticketActionStatus, setTicketActionStatus] = useState({});
+
+  const fetchTickets = async (filter = ticketFilter) => {
+    setTicketLoading(true);
+    try {
+      const url = filter && filter !== 'All' ? `/support/tickets?status=${encodeURIComponent(filter)}` : '/support/tickets';
+      const res = await api.get(url);
+      setTickets(res.data.tickets || []);
+      if (res.data.statusCounts) {
+        setTicketStatusCounts(res.data.statusCounts);
+      }
+    } catch (err) {
+      console.error('[AdminDashboard] Error fetching tickets:', err);
+    } finally {
+      setTicketLoading(false);
+    }
+  };
+
+  const handleUpdateTicketStatus = async (ticketId, newStatus) => {
+    setTicketActionStatus((prev) => ({ ...prev, [ticketId]: { updating: true, msg: '', type: '' } }));
+    try {
+      const note = ticketNotes[ticketId] || '';
+      const res = await api.patch(`/support/tickets/${ticketId}/status`, {
+        status: newStatus,
+        resolutionNotes: note,
+      });
+      setTickets((prev) =>
+        prev.map((t) => (t._id === ticketId ? res.data.ticket : t))
+      );
+      setTicketActionStatus((prev) => ({
+        ...prev,
+        [ticketId]: { updating: false, msg: `→ ${newStatus}`, type: 'success' },
+      }));
+      fetchTickets(ticketFilter);
+      setTimeout(() => {
+        setTicketActionStatus((prev) => ({ ...prev, [ticketId]: { updating: false, msg: '', type: '' } }));
+      }, 3000);
+    } catch (err) {
+      setTicketActionStatus((prev) => ({
+        ...prev,
+        [ticketId]: {
+          updating: false,
+          msg: err.response?.data?.message || 'Update failed',
+          type: 'error',
+        },
+      }));
+    }
+  };
+
   const fetchData = async () => {
     setLoading(true);
     try {
@@ -51,6 +106,12 @@ const AdminDashboard = () => {
   useEffect(() => {
     fetchData();
   }, []);
+
+  useEffect(() => {
+    if (activeTab === 'tickets') {
+      fetchTickets(ticketFilter);
+    }
+  }, [activeTab, ticketFilter]);
 
   const handleCreateService = async (e) => {
     e.preventDefault();
@@ -184,7 +245,8 @@ const AdminDashboard = () => {
           { id: 'fleet', label: 'Live Fleet Map' },
           { id: 'partners', label: 'Partner Management' },
           { id: 'services', label: 'Services Catalogue' },
-          { id: 'slots', label: 'Slot Booking' }
+          { id: 'slots', label: 'Slot Booking' },
+          { id: 'tickets', label: 'Support Tickets' },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -530,6 +592,179 @@ const AdminDashboard = () => {
                   Book Partner Slot
                 </button>
               </form>
+            </div>
+          )}
+
+          {/* Support Tickets Tab */}
+          {activeTab === 'tickets' && (
+            <div className="space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h3 className="text-base font-bold text-theme-primary font-poppins flex items-center gap-2">
+                    <MessageSquare className="h-5 w-5 text-theme-accent" />
+                    <span>Customer Support Tickets</span>
+                  </h3>
+                  <p className="text-xs text-theme-muted mt-0.5">
+                    Review incoming customer inquiries, manage status transitions, and record resolution notes.
+                  </p>
+                </div>
+
+                {/* Status Filter Tabs */}
+                <div className="flex flex-wrap gap-1.5 bg-theme-elevated p-1 rounded-2xl border border-theme">
+                  {['All', 'Pending', 'In Progress', 'Resolved', 'Closed'].map((st) => (
+                    <button
+                      key={st}
+                      onClick={() => setTicketFilter(st)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors ${
+                        ticketFilter === st
+                          ? 'bg-theme-accent text-theme-accent-text shadow-sm'
+                          : 'text-theme-muted hover:text-theme-primary'
+                      }`}
+                    >
+                      {st} ({ticketStatusCounts[st] ?? 0})
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {ticketLoading ? (
+                <div className="py-12 flex justify-center items-center space-x-2 text-theme-muted text-sm">
+                  <Loader2 className="h-5 w-5 animate-spin text-theme-accent" />
+                  <span>Loading support tickets...</span>
+                </div>
+              ) : tickets.length === 0 ? (
+                <div className="py-12 text-center text-theme-muted space-y-2">
+                  <MessageSquare className="h-10 w-10 text-theme-muted mx-auto opacity-50" />
+                  <p className="text-sm font-semibold">No tickets found in category "{ticketFilter}".</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {tickets.map((t) => {
+                    const actionState = ticketActionStatus[t._id] || {};
+
+                    return (
+                      <div
+                        key={t._id}
+                        className="bg-theme-elevated/40 border border-theme rounded-2xl p-5 sm:p-6 space-y-4 hover:border-theme-accent/40 transition-colors"
+                      >
+                        {/* Top row: Token, date, status */}
+                        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-theme pb-3">
+                          <div className="flex items-center space-x-3">
+                            <span className="font-mono text-sm font-black text-theme-accent bg-theme-accent-light px-2.5 py-1 rounded-lg border border-theme-accent">
+                              {t.ticketToken}
+                            </span>
+                            <span className="text-xs text-theme-muted">
+                              {new Date(t.createdAt).toLocaleDateString('en-IN', {
+                                month: 'short',
+                                day: 'numeric',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center space-x-2">
+                            <span
+                              className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-lg border ${
+                                t.status === 'Pending'
+                                  ? 'bg-amber-500/10 text-amber-500 border-amber-500/30'
+                                  : t.status === 'In Progress'
+                                  ? 'bg-blue-500/10 text-blue-500 border-blue-500/30'
+                                  : t.status === 'Resolved'
+                                  ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30'
+                                  : 'bg-gray-500/10 text-gray-400 border-gray-500/30'
+                              }`}
+                            >
+                              {t.status}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Middle row: Submitter, subject, message */}
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                          <div className="space-y-1">
+                            <span className="text-[10px] font-bold text-theme-muted uppercase tracking-wider block">Customer</span>
+                            <p className="text-xs font-bold text-theme-primary">{t.name}</p>
+                            <a href={`mailto:${t.email}`} className="text-xs text-theme-accent hover:underline block truncate">
+                              {t.email}
+                            </a>
+                            {t.submittedBy && (
+                              <span className="inline-block text-[10px] bg-theme-elevated text-theme-muted px-1.5 py-0.5 rounded border border-theme">
+                                Registered User
+                              </span>
+                            )}
+                            {t.relatedOrderId && (
+                              <div className="pt-1 text-[11px] text-theme-muted font-mono">
+                                Order: #{typeof t.relatedOrderId === 'object' ? t.relatedOrderId._id?.slice(-8).toUpperCase() : t.relatedOrderId?.slice(-8).toUpperCase()}
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="md:col-span-3 space-y-2">
+                            <h4 className="text-sm font-bold text-theme-primary font-poppins">{t.subject}</h4>
+                            <div className="text-xs text-theme-muted leading-relaxed bg-theme-surface border border-theme rounded-xl p-3 whitespace-pre-wrap">
+                              {t.message}
+                            </div>
+                            {t.resolutionNotes && (
+                              <div className="text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3 space-y-1">
+                                <span className="font-bold block text-[10px] uppercase tracking-wider text-emerald-400">Existing Resolution Note:</span>
+                                <span>{t.resolutionNotes}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Bottom row: Admin Update Controls */}
+                        <div className="border-t border-theme pt-3 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+                          <div className="flex-grow">
+                            <input
+                              type="text"
+                              placeholder="Add resolution / internal notes for customer..."
+                              defaultValue={t.resolutionNotes || ''}
+                              onChange={(e) => setTicketNotes((prev) => ({ ...prev, [t._id]: e.target.value }))}
+                              className="w-full text-xs px-3 py-2 bg-theme-surface border border-theme rounded-xl text-theme-primary placeholder-theme-muted focus:outline-none focus:border-theme-accent"
+                            />
+                          </div>
+
+                          <div className="flex items-center space-x-2 shrink-0">
+                            <select
+                              defaultValue={t.status}
+                              id={`status-select-${t._id}`}
+                              className="text-xs font-bold px-3 py-2 rounded-xl bg-theme-surface border border-theme text-theme-primary focus:outline-none focus:border-theme-accent"
+                            >
+                              <option value="Pending">Pending</option>
+                              <option value="In Progress">In Progress</option>
+                              <option value="Resolved">Resolved</option>
+                              <option value="Closed">Closed</option>
+                            </select>
+
+                            <button
+                              disabled={actionState.updating}
+                              onClick={() => {
+                                const selectEl = document.getElementById(`status-select-${t._id}`);
+                                if (selectEl) {
+                                  handleUpdateTicketStatus(t._id, selectEl.value);
+                                }
+                              }}
+                              className="text-xs font-bold px-4 py-2 bg-theme-accent text-theme-accent-text rounded-xl shadow-sm hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center space-x-1.5"
+                            >
+                              {actionState.updating && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                              <span>Save Status</span>
+                            </button>
+
+                            {actionState.msg && (
+                              <span className={`text-xs font-bold ${actionState.type === 'success' ? 'text-emerald-500' : 'text-red-500'}`}>
+                                {actionState.msg}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
         </div>

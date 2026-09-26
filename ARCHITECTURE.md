@@ -736,6 +736,28 @@ A wrong AI-stated price or false delivery promise represents a critical business
     ```
   - *Note on `client/public/_redirects`*: The `_redirects` file is a Netlify/Render Static Site convention; on Vercel it is completely inert and harmless, while `vercel.json` provides the authoritative SPA rewrite rule.
 
+### 12.3 Environment Variables Reference Table
+
+| Variable | Scope | Purpose / Description | Required | Example / Default Value |
+|---|---|---|---|---|
+| `MONGO_URI` | Backend | Primary MongoDB connection URI (Users, Orders, Services, Slots, Tickets) | Yes | `mongodb+srv://...` |
+| `CHAT_MONGO_URI` | Backend | Isolated MongoDB connection URI for ephemeral order chat messages | Yes | `mongodb+srv://...` |
+| `JWT_SECRET` | Backend | Cryptographic secret for signing and verifying JSON Web Tokens | Yes | `aniket_secret_key_...` |
+| `PORT` | Backend | Local HTTP listen port | No | `5000` |
+| `RAZORPAY_KEY_ID` | Backend | Razorpay public API key for test/live checkout | Yes | `rzp_test_...` |
+| `RAZORPAY_KEY_SECRET` | Backend | Razorpay secret key used for HMAC-SHA256 signature verification | Yes | `fNBiZUE...` |
+| `GMAIL_USER` | Backend | Gmail account address for Nodemailer SMTP transactional emails | Yes | `as.thakuraniket@gmail.com` |
+| `GMAIL_APP_PASSWORD` | Backend | Google App Password (16-char) for authenticated SMTP dispatch | Yes | `xxxx xxxx xxxx xxxx` |
+| `CONTACT_EMAIL` | Backend | Authoritative admin inbox address receiving new customer support ticket notifications | Yes | `as.thakuraniket@gmail.com` |
+| `HUB_LAT` | Backend | Central Laundry Facility Hub latitude (Jalandhar, Punjab) | Yes | `31.3260` |
+| `HUB_LNG` | Backend | Central Laundry Facility Hub longitude (Jalandhar, Punjab) | Yes | `75.5762` |
+| `SERVICE_RADIUS_KM` | Backend | Maximum service radius boundary in kilometers | Yes | `500` |
+| `GEMINI_API_KEY` | Backend | Google AI Studio API Key for Gemini Flash AI assistant | Yes | `AQ.Ab8RN6...` |
+| `GEMINI_MODEL` | Backend | Gemini model variant | No | `gemini-2.5-flash` |
+| `GOOGLE_CLIENT_ID` | Backend/Client | Google OAuth 2.0 Web Client ID for Google Sign-In | Yes | `1923487...apps.googleusercontent.com` |
+| `VITE_API_URL` | Frontend | Base URL targeting Express REST API gateway | Production | `https://laundryconnect-api.onrender.com/api` |
+| `VITE_SOCKET_URL` | Frontend | Base URL targeting Socket.io WebSocket server | Production | `https://laundryconnect-api.onrender.com` |
+
 ---
 
 ## 13. Known Limitations & Future Work
@@ -836,7 +858,134 @@ Chat messages are rendered directly in the user interface. To prevent Cross-Site
 
 ---
 
+## 13. Customer Support Ticket Subsystem & Trust Infrastructure (Phase 6)
+
+### 13.1 Subsystem Architecture & Request Lifecycle
+Evolving beyond a basic stateless contact form, the LaundryConnect Customer Support Ticket System provides persistent, trackable issue management across customers and platform administrators.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Customer as Customer / Visitor (Contact.jsx)
+    participant API as Support API (supportRoutes.js)
+    participant RateLimit as In-Memory Sliding Window Rate Limiter
+    participant DB as MongoDB Atlas (SupportTicket)
+    participant Email as Nodemailer (emailService.js)
+    actor Admin as Administrator (AdminDashboard.jsx)
+
+    Customer->>API: POST /api/support/tickets { name, email, subject, message, relatedOrderId }
+    Note over API,RateLimit: Rate Limiting: Max 5 tickets / 10 min window per IP
+    alt Rate Limit Exceeded
+        API-->>Customer: 429 Too Many Requests (Retry-After header)
+    else Under Threshold
+        API->>DB: SupportTicket.create({ ticketToken: "LC-XXXXXX", status: "Pending", ... })
+        par Fire-and-Forget Transactional Emails
+            API-.->Email: sendSupportTicketConfirmationEmail(ticket) -> Customer
+            API-.->Email: sendSupportTicketAdminNotificationEmail(ticket) -> CONTACT_EMAIL
+        end
+        API-->>Customer: 201 Created { ticketToken: "LC-XXXXXX", status: "Pending" }
+    end
+
+    opt Customer Status Check (Public, No Auth Required)
+        Customer->>API: GET /api/support/tickets/:token
+        API->>DB: SupportTicket.findOne({ ticketToken: token })
+        API-->>Customer: 200 OK { ticketToken, subject, status, resolutionNotes, ... }
+    end
+
+    opt Admin Ticket Management (Protected + Authorize 'admin')
+        Admin->>API: GET /api/support/tickets?status=Pending
+        API-->>Admin: 200 OK { tickets: [...], statusCounts }
+        Admin->>API: PATCH /api/support/tickets/:id/status { status: "Resolved", resolutionNotes: "..." }
+        API->>DB: update ticket status & set resolvedAt timestamp
+        API-->>Admin: 200 OK { ticket }
+    end
+```
+
+### 13.2 Support Ticket Data Model (`server/models/SupportTicket.js`)
+```javascript
+{
+  ticketToken: { type: String, unique: true, index: true, default: generateTicketToken }, // e.g. "LC-A9684D"
+  name: { type: String, required: true, trim: true },
+  email: { type: String, required: true, trim: true, lowercase: true },
+  subject: { type: String, required: true, trim: true },
+  message: { type: String, required: true, trim: true },
+  relatedOrderId: { type: ObjectId, ref: 'Order', required: false, default: null },
+  status: { type: String, enum: ['Pending', 'In Progress', 'Resolved', 'Closed'], default: 'Pending', index: true },
+  submittedBy: { type: ObjectId, ref: 'User', required: false, default: null },
+  resolutionNotes: { type: String, default: '', trim: true },
+  resolvedAt: { type: Date, default: null },
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now }
+}
+```
+
+### 13.3 Unique Human-Readable Token Generation
+- **Algorithm**: `const randomPart = crypto.randomBytes(3).toString('hex').toUpperCase(); return 'LC-' + randomPart;`
+- **Characteristics**: 9 characters total (`LC-` prefix + 6 hex alphanumeric characters), e.g., `LC-A9684D`.
+- **Pre-Validation Hook**: A Mongoose pre-validate hook ensures that `ticketToken` is automatically assigned if not provided.
+
+### 13.4 Status Lifecycle & Timestamp Transitions
+1. **`Pending`**: Default status upon ticket submission. Submitter receives email confirmation with token; admin receives notification alert.
+2. **`In Progress`**: Administrator claims or begins investigating the inquiry.
+3. **`Resolved`**: Issue resolved; `resolvedAt` timestamp is set to `new Date()`, and admin resolution notes are recorded.
+4. **`Closed`**: Ticket finalized; `resolvedAt` is maintained.
+
+### 13.5 Dual Email Notification Flow (Nodemailer Gmail SMTP)
+Reuses the existing Nodemailer Gmail transport (`server/utils/emailService.js`) without introducing parallel email dependencies:
+- **Customer Confirmation**: Dispatched to `ticket.email` using `renderEmailLayout` with brand styling, token badge, summary of submitted inquiry, and a direct link to check status.
+- **Admin Alert**: Dispatched to `process.env.CONTACT_EMAIL || process.env.GMAIL_USER` with submitter details, related order ID (if any), full inquiry text, and a direct link to the Admin Dashboard.
+- **Fail-Safe Dispatch**: Both calls are fire-and-forget (`.catch()`) using `safeSendEmail`, simulating safely in the console if credentials are unset or placeholder.
+
+### 13.6 Rate Limiting & Abuse Prevention
+- **Middleware**: `supportRateLimiter` created via `createRateLimiter` in [`server/middleware/rateLimiter.js`](file:///c:/Users/Pratik/laundryconnect/server/middleware/rateLimiter.js).
+- **Threshold**: 5 submissions per 10-minute sliding window per client IP.
+- **Response**: HTTP 429 (`"Too many support tickets submitted from this network. Please wait a few minutes before trying again."`) with an authoritative `Retry-After` header.
+
+### 13.7 Frontend Trust & Content Pages Suite
+- **`About.jsx` (`/about`)**: Warm, authentic brand story tackling legacy dry-cleaning friction, a 4-step "How It Works" visual breakdown, founder blurb crediting Aniket Singh Rajput (solo-built, full-stack engineered), and integrated `TestimonialsCarousel`.
+- **`FAQ.jsx` (`/faq`)**: Grouped accordion with categories (Orders, Payments, Delivery, Account), instant search filtering, and authoritative platform ground truth answers matching the AI assistant's knowledge base.
+- **`TestimonialsCarousel.jsx`**: Auto-rotating carousel with star ratings, category tags, customer quotes, manual prev/next navigation, and pagination dots.
+- **`Contact.jsx` (`/contact`)**: Support ticket submission form with order link dropdown, prominent token display with copy button, and public unauthenticated ticket status lookup.
+- **`PrivacyPolicy.jsx` (`/privacy`) & `TermsOfService.jsx` (`/terms`)**: Structured legal terms covering Razorpay payments, live partner location telemetry, and GDPR account deletion, accompanied by the required demonstration disclaimer.
+- **`NotFound.jsx` (`*`)**: Playful, laundry-themed 404 page featuring a spinning washing machine drum with lost sock and floating bubble animation, replacing the silent redirect catch-all.
+
+---
+
 ## 14. Changelog
+
+### 2026-09-26 (Phase 6: Trust, Content, Support Tickets & Legal Pages)
+- **SUPPORT TICKET SUBSYSTEM WITH DUAL EMAIL DISPATCH & PUBLIC LOOKUP**:
+  - *Data Model & Token Generation*: Created [`SupportTicket.js`](file:///c:/Users/Pratik/laundryconnect/server/models/SupportTicket.js) with unique human-readable ticket token (`LC-` + 6 hex chars), status lifecycle (`Pending`, `In Progress`, `Resolved`, `Closed`), and optional order linkage.
+  - *Transactional Email Dispatch*: Added `sendSupportTicketConfirmationEmail` and `sendSupportTicketAdminNotificationEmail` to [`emailService.js`](file:///c:/Users/Pratik/laundryconnect/server/utils/emailService.js) using existing Nodemailer transport. Sends submitter confirmation and dispatches alert to `CONTACT_EMAIL`.
+  - *Endpoints & Rate Limiting*: Implemented [`supportController.js`](file:///c:/Users/Pratik/laundryconnect/server/controllers/supportController.js) and [`supportRoutes.js`](file:///c:/Users/Pratik/laundryconnect/server/routes/supportRoutes.js) with `POST /api/support/tickets` (protected by 5 tickets/10 min sliding-window IP rate limiter), `GET /api/support/tickets/:token` (public lookup), and admin-authenticated `GET /api/support/tickets` and `PATCH /api/support/tickets/:id/status`.
+  - *Admin Dashboard Integration*: Added "Support Tickets" tab to [`AdminDashboard.jsx`](file:///c:/Users/Pratik/laundryconnect/client/src/pages/admin/AdminDashboard.jsx) with status filtering, live counts, resolution notes editor, and status updater.
+- **TRUST, CONTENT, FAQ & LEGAL PAGES**:
+  - *About Us (`About.jsx`)*: Built brand story addressing turnaround opacity and live tracking, a 4-step "How It Works" workflow, and a founder blurb crediting Aniket Singh Rajput.
+  - *FAQs & Knowledge Base (`FAQ.jsx`)*: Grouped accordion categories (Orders, Payments, Delivery, Account) with search filtering and answers synchronized with the AI chatbot's system prompt.
+  - *Customer Testimonials (`TestimonialsCarousel.jsx`)*: Auto-rotating customer carousel with star ratings, pause on hover, manual navigation, and category tags.
+  - *Contact & Ticket Lookup (`Contact.jsx`)*: Interactive ticket submission form with copyable ticket token display and inline public status lookup.
+  - *Legal Pages (`PrivacyPolicy.jsx`, `TermsOfService.jsx`)*: Structured terms covering Razorpay, live telemetry, and GDPR account deletion with demonstration disclaimer notice.
+  - *Delightful 404 Page (`NotFound.jsx`)*: Replaced silent redirect with animated spinning washing machine drum and lost sock animation.
+- *Files Touched*:
+  - `server/.env`
+  - `server/server.js`
+  - `server/models/SupportTicket.js`
+  - `server/controllers/supportController.js`
+  - `server/routes/supportRoutes.js`
+  - `server/utils/emailService.js`
+  - `server/middleware/rateLimiter.js`
+  - `client/src/App.jsx`
+  - `client/src/components/Navbar.jsx`
+  - `client/src/components/Footer.jsx`
+  - `client/src/components/TestimonialsCarousel.jsx`
+  - `client/src/pages/NotFound.jsx`
+  - `client/src/pages/customer/About.jsx`
+  - `client/src/pages/customer/FAQ.jsx`
+  - `client/src/pages/customer/Contact.jsx`
+  - `client/src/pages/customer/PrivacyPolicy.jsx`
+  - `client/src/pages/customer/TermsOfService.jsx`
+  - `client/src/pages/admin/AdminDashboard.jsx`
+  - `ARCHITECTURE.md`
 
 ### 2026-09-25 (Phase 5: Live Customer-Partner Order Chat & Separate Database)
 - **LIVE CUSTOMER-PARTNER ORDER CHAT WITH 7-DAY TTL CLEANUP**:

@@ -80,6 +80,31 @@ const Footer = () => {
                   Schedule Pickup
                 </Link>
               </li>
+              <li>
+                <Link to="/about" className="hover:text-theme-accent transition-colors duration-200">
+                  About Us
+                </Link>
+              </li>
+              <li>
+                <Link to="/faq" className="hover:text-theme-accent transition-colors duration-200">
+                  FAQs &amp; Help
+                </Link>
+              </li>
+              <li>
+                <Link to="/contact" className="hover:text-theme-accent transition-colors duration-200">
+                  Contact &amp; Support
+                </Link>
+              </li>
+              <li>
+                <Link to="/privacy" className="hover:text-theme-accent transition-colors duration-200">
+                  Privacy Policy
+                </Link>
+              </li>
+              <li>
+                <Link to="/terms" className="hover:text-theme-accent transition-colors duration-200">
+                  Terms of Service
+                </Link>
+              </li>
             </ul>
           </div>
 
@@ -125,10 +150,7 @@ const Footer = () => {
         {/* Bottom Bar */}
         <div className="border-t border-theme pt-8 mt-8 flex flex-col sm:flex-row justify-between items-center text-xs text-theme-muted">
           <p className="mb-2 sm:mb-0">
-            &copy; {currentYear} LaundryConnect. All rights reserved.
-          </p>
-          <p className="font-medium text-theme-muted">
-            Built and designed by{' '}
+            &copy; {currentYear} LaundryConnect. All rights reserved. &bull; Founder &amp; Developer:{' '}
             <a
               href="https://www.linkedin.com/in/aniket-singh-as/"
               target="_blank"
@@ -137,7 +159,9 @@ const Footer = () => {
             >
               Aniket Singh Rajput
             </a>
-            .
+          </p>
+          <p className="font-medium text-theme-muted">
+            Crafted with modern full-stack engineering &amp; passion.
           </p>
         </div>
       </div>

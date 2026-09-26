@@ -22,6 +22,12 @@ import Register from './pages/Register';
 import PartnerDashboard from './pages/partner/PartnerDashboard';
 import PartnerProfile from './pages/partner/PartnerProfile';
 import AdminDashboard from './pages/admin/AdminDashboard';
+import About from './pages/customer/About';
+import FAQ from './pages/customer/FAQ';
+import Contact from './pages/customer/Contact';
+import PrivacyPolicy from './pages/customer/PrivacyPolicy';
+import TermsOfService from './pages/customer/TermsOfService';
+import NotFound from './pages/NotFound';
 
 function AnimatedRoutes() {
   const location = useLocation();
@@ -33,6 +39,11 @@ function AnimatedRoutes() {
         <Route path="/" element={<PageTransition><Home /></PageTransition>} />
         <Route path="/services" element={<PageTransition><Services /></PageTransition>} />
         <Route path="/track" element={<PageTransition><TrackOrder /></PageTransition>} />
+        <Route path="/about" element={<PageTransition><About /></PageTransition>} />
+        <Route path="/faq" element={<PageTransition><FAQ /></PageTransition>} />
+        <Route path="/contact" element={<PageTransition><Contact /></PageTransition>} />
+        <Route path="/privacy" element={<PageTransition><PrivacyPolicy /></PageTransition>} />
+        <Route path="/terms" element={<PageTransition><TermsOfService /></PageTransition>} />
         <Route path="/login" element={<PageTransition><Login /></PageTransition>} />
         <Route path="/register" element={<PageTransition><Register /></PageTransition>} />
 
@@ -91,8 +102,8 @@ function AnimatedRoutes() {
           } 
         />
 
-        {/* Catch-all fallback */}
-        <Route path="*" element={<Navigate to="/" replace />} />
+        {/* Catch-all 404 Route */}
+        <Route path="*" element={<PageTransition><NotFound /></PageTransition>} />
       </Routes>
     </AnimatePresence>
   );
